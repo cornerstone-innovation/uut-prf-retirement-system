@@ -1,81 +1,102 @@
-# UUT PRF Core Schema Outline
+# Identity, Investor and KYC Schema Design
 
-## Identity Domain
-- users
-- roles
-- permissions
-- model_has_roles
-- model_has_permissions
+## Users
+- id
+- uuid
+- name
+- email
+- phone
+- password
+- is_active
+- last_login_at
+- investor_id nullable
+- timestamps
 
-## Investor Domain
-- investors
-- investor_contacts
-- investor_addresses
-- investor_nominees
-- investor_kyc_profiles
+## Investors
+- id
+- uuid
+- investor_number
+- investor_type
+- first_name nullable
+- middle_name nullable
+- last_name nullable
+- full_name
+- company_name nullable
+- date_of_birth nullable
+- gender nullable
+- nationality nullable
+- national_id_number nullable
+- tax_identification_number nullable
+- onboarding_status
+- kyc_status
+- investor_status
+- risk_profile nullable
+- occupation nullable
+- employer_name nullable
+- source_of_funds nullable
+- notes nullable
+- created_by nullable
+- updated_by nullable
+- timestamps
 
-## Product Domain
-- products
-- plans
-- plan_options
-- lock_in_rules
-- switch_rules
-- fee_rules
+## Investor Contacts
+- id
+- investor_id
+- email nullable
+- phone_primary nullable
+- phone_secondary nullable
+- alternate_contact_name nullable
+- alternate_contact_phone nullable
+- preferred_contact_method nullable
+- timestamps
 
-## Payment Domain
-- payment_requests
-- payment_transactions
-- payment_callbacks
-- payment_reconciliations
+## Investor Addresses
+- id
+- investor_id
+- address_type
+- country
+- region nullable
+- city nullable
+- district nullable
+- ward nullable
+- street nullable
+- postal_address nullable
+- postal_code nullable
+- is_primary
+- timestamps
 
-## Purchase Domain
-- purchase_orders
-- purchase_allocations
-- contract_notes
+## Investor Nominees
+- id
+- investor_id
+- full_name
+- relationship
+- date_of_birth nullable
+- phone nullable
+- email nullable
+- national_id_number nullable
+- allocation_percentage
+- is_minor
+- guardian_name nullable
+- guardian_phone nullable
+- address nullable
+- timestamps
 
-## NAV Domain
-- nav_records
-- nav_publications
-- nav_audit_logs
-
-## Ledger Domain
-- unit_lots
-- ledger_entries
-- lot_movements
-- balance_snapshots
-
-## Holding Domain
-- holding_views
-- holding_valuations
-
-## Switching Domain
-- switch_requests
-- switch_allocations
-
-## Redemption Domain
-- redemption_requests
-- redemption_allocations
-- redemption_approvals
-
-## Payout Domain
-- payout_instructions
-- payout_attempts
-- payout_confirmations
-
-## Document Domain
-- documents
-- document_versions
-- document_links
-
-## Audit Domain
-- audit_logs
-- approval_logs
-- system_events
-
-## Notification Domain
-- notification_logs
-- notification_templates
-
-## Reconciliation Domain
-- reconciliation_cases
-- reconciliation_items
+## Investor KYC Profiles
+- id
+- investor_id
+- kyc_reference
+- document_status
+- identity_verification_status
+- address_verification_status
+- tax_verification_status
+- pep_check_status nullable
+- sanctions_check_status nullable
+- aml_risk_level nullable
+- review_notes nullable
+- submitted_at nullable
+- reviewed_at nullable
+- reviewed_by nullable
+- approved_at nullable
+- rejected_at nullable
+- expires_at nullable
+- timestamps
