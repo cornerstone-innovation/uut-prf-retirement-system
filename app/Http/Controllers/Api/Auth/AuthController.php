@@ -2,9 +2,18 @@
 
 namespace App\Http\Controllers\Api\Auth;
 
-use Illuminate\Http\JsonResponse;
-use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Auth\Events\Verified;
+use Illuminate\Foundation\Auth\EmailVerificationRequest;
+use Illuminate\Support\Facades\Password;
+use App\Http\Controllers\Controller;
+use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Str;
+use App\Http\Requests\Auth\ForgotPasswordRequest;
+use App\Http\Requests\Auth\ResetPasswordRequest;
 
 class AuthController extends Controller
 {
@@ -20,4 +29,76 @@ class AuthController extends Controller
             'message' => 'Logged out successfully.',
         ]);
     }
+
+    public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
+    {
+        $status = Password::sendResetLink(
+            $request->only('email')
+        );
+
+        return $status === Password::RESET_LINK_SENT
+            ? response()->json([
+                'message' => __($status),
+            ])
+            : response()->json([
+                'message' => __($status),
+            ], 422);
+    }
+
+    public function resetPassword(ResetPasswordRequest $request): JsonResponse
+    {
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function (User $user, string $password) {
+                $user->forceFill([
+                    'password' => Hash::make($password),
+                    'remember_token' => Str::random(60),
+                ])->save();
+
+                $user->tokens()->delete();
+
+                event(new PasswordReset($user));
+            }
+        );
+
+        return $status === Password::PASSWORD_RESET
+            ? response()->json([
+                'message' => __($status),
+            ])
+            : response()->json([
+                'message' => __($status),
+            ], 422);
+    }
+
+public function sendVerificationEmail(Request $request): JsonResponse
+{
+    if ($request->user()->hasVerifiedEmail()) {
+        return response()->json([
+            'message' => 'Email is already verified.',
+        ]);
+    }
+
+    $request->user()->sendEmailVerificationNotification();
+
+    return response()->json([
+        'message' => 'Verification link sent successfully.',
+    ]);
+}
+
+public function verifyEmail(EmailVerificationRequest $request): JsonResponse
+{
+    if ($request->user()->hasVerifiedEmail()) {
+        return response()->json([
+            'message' => 'Email already verified.',
+        ]);
+    }
+
+    if ($request->user()->markEmailAsVerified()) {
+        event(new Verified($request->user()));
+    }
+
+    return response()->json([
+        'message' => 'Email verified successfully.',
+    ]);
+}
 }

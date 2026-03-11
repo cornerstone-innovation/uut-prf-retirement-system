@@ -26,6 +26,8 @@ return [
     |
     */
 
+    'frontend_url' => env('FRONTEND_URL', 'http://localhost:3000'),
+
     'env' => env('APP_ENV', 'production'),
 
     /*
