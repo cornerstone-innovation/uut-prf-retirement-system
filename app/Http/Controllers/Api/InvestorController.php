@@ -2,25 +2,85 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Models\Investor;
+use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
+use App\Http\Resources\InvestorResource;
+use App\Application\Services\Audit\AuditLogger;
 use App\Application\Actions\Investor\CreateInvestorAction;
 use App\Application\DTOs\Investor\CreateInvestorData;
 use App\Application\DTOs\Investor\InvestorAddressData;
 use App\Application\DTOs\Investor\InvestorNomineeData;
 use App\Application\Services\Investor\InvestorOnboardingValidator;
 use App\Http\Requests\Investor\StoreInvestorRequest;
-use App\Http\Resources\InvestorResource;
-use App\Application\Services\Audit\AuditLogger;
 
 class InvestorController extends Controller
 {
+    public function index(Request $request): JsonResponse
+    {
+        abort_unless(
+            $request->user()?->can('view investors'),
+            403,
+            'You do not have permission to view investors.'
+        );
+
+        $query = Investor::query()
+            ->with(['contact', 'addresses', 'nominees', 'kycProfile']);
+
+        if ($search = $request->string('search')->toString()) {
+            $query->where(function ($q) use ($search) {
+                $q->where('investor_number', 'ilike', "%{$search}%")
+                    ->orWhere('full_name', 'ilike', "%{$search}%")
+                    ->orWhere('company_name', 'ilike', "%{$search}%")
+                    ->orWhereHas('contact', function ($contactQuery) use ($search) {
+                        $contactQuery->where('email', 'ilike', "%{$search}%")
+                            ->orWhere('phone_primary', 'ilike', "%{$search}%");
+                    });
+            });
+        }
+
+        if ($request->filled('investor_type')) {
+            $query->where('investor_type', $request->string('investor_type')->toString());
+        }
+
+        if ($request->filled('onboarding_status')) {
+            $query->where('onboarding_status', $request->string('onboarding_status')->toString());
+        }
+
+        if ($request->filled('kyc_status')) {
+            $query->where('kyc_status', $request->string('kyc_status')->toString());
+        }
+
+        if ($request->filled('investor_status')) {
+            $query->where('investor_status', $request->string('investor_status')->toString());
+        }
+
+        $perPage = (int) $request->integer('per_page', 15);
+        $perPage = min(max($perPage, 1), 100);
+
+        $investors = $query
+            ->latest('id')
+            ->paginate($perPage)
+            ->withQueryString();
+
+        return response()->json([
+            'message' => 'Investors retrieved successfully.',
+            'data' => InvestorResource::collection($investors->items()),
+            'meta' => [
+                'current_page' => $investors->currentPage(),
+                'last_page' => $investors->lastPage(),
+                'per_page' => $investors->perPage(),
+                'total' => $investors->total(),
+            ],
+        ]);
+    }
+
     public function store(
         StoreInvestorRequest $request,
         InvestorOnboardingValidator $validator,
         CreateInvestorAction $action,
         AuditLogger $auditLogger
-
     ): JsonResponse {
         abort_unless(
             $request->user()?->can('create investors'),
@@ -93,23 +153,39 @@ class InvestorController extends Controller
         );
 
         $auditLogger->log(
-    userId: $request->user()?->id,
-    action: 'investor.created',
-    entityType: 'investor',
-    entityId: $investor->id,
-    entityReference: $investor->investor_number,
-    metadata: [
-        'investor_type' => $investor->investor_type,
-        'full_name' => $investor->full_name,
-        'onboarding_status' => $investor->onboarding_status,
-        'kyc_status' => $investor->kyc_status,
-    ],
-    request: $request
-);
+            userId: $request->user()?->id,
+            action: 'investor.created',
+            entityType: 'investor',
+            entityId: $investor->id,
+            entityReference: $investor->investor_number,
+            metadata: [
+                'investor_type' => $investor->investor_type,
+                'full_name' => $investor->full_name,
+                'onboarding_status' => $investor->onboarding_status,
+                'kyc_status' => $investor->kyc_status,
+            ],
+            request: $request
+        );
 
         return response()->json([
             'message' => 'Investor created successfully.',
             'data' => new InvestorResource($investor),
         ], 201);
+    }
+
+    public function show(Request $request, Investor $investor): JsonResponse
+    {
+        abort_unless(
+            $request->user()?->can('view investors'),
+            403,
+            'You do not have permission to view investors.'
+        );
+
+        $investor->load(['contact', 'addresses', 'nominees', 'kycProfile']);
+
+        return response()->json([
+            'message' => 'Investor retrieved successfully.',
+            'data' => new InvestorResource($investor),
+        ]);
     }
 }
