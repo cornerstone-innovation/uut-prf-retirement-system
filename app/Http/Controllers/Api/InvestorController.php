@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Models\Investor;
 use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
 use App\Application\Actions\Investor\CreateInvestorAction;
@@ -11,14 +10,24 @@ use App\Application\DTOs\Investor\InvestorAddressData;
 use App\Application\DTOs\Investor\InvestorNomineeData;
 use App\Application\Services\Investor\InvestorOnboardingValidator;
 use App\Http\Requests\Investor\StoreInvestorRequest;
+use App\Http\Resources\InvestorResource;
+use App\Application\Services\Audit\AuditLogger;
 
 class InvestorController extends Controller
 {
     public function store(
         StoreInvestorRequest $request,
         InvestorOnboardingValidator $validator,
-        CreateInvestorAction $action
+        CreateInvestorAction $action,
+        AuditLogger $auditLogger
+
     ): JsonResponse {
+        abort_unless(
+            $request->user()?->can('create investors'),
+            403,
+            'You do not have permission to create investors.'
+        );
+
         $validated = $request->validated();
 
         $validator->validate($validated);
@@ -78,14 +87,29 @@ class InvestorController extends Controller
                     ),
                     $validated['nominees'] ?? []
                 ),
-                createdBy: auth()->id(),
-                updatedBy: auth()->id(),
+                createdBy: $request->user()?->id,
+                updatedBy: $request->user()?->id,
             )
         );
 
+        $auditLogger->log(
+    userId: $request->user()?->id,
+    action: 'investor.created',
+    entityType: 'investor',
+    entityId: $investor->id,
+    entityReference: $investor->investor_number,
+    metadata: [
+        'investor_type' => $investor->investor_type,
+        'full_name' => $investor->full_name,
+        'onboarding_status' => $investor->onboarding_status,
+        'kyc_status' => $investor->kyc_status,
+    ],
+    request: $request
+);
+
         return response()->json([
             'message' => 'Investor created successfully.',
-            'data' => $investor,
+            'data' => new InvestorResource($investor),
         ], 201);
     }
 }
