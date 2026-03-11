@@ -17,6 +17,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'create investors',
             'view investors',
             'update investors',
+            'approve investors',
             'approve kyc',
             'manage users',
             'manage roles',
@@ -42,6 +43,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'create investors',
             'view investors',
             'update investors',
+            'approve investors',
             'manage users',
         ]);
 
@@ -53,6 +55,7 @@ class RolesAndPermissionsSeeder extends Seeder
 
         $compliance->givePermissionTo([
             'view investors',
+            'approve investors',
             'approve kyc',
         ]);
 

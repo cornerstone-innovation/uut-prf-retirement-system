@@ -14,6 +14,11 @@ use App\Application\DTOs\Investor\InvestorAddressData;
 use App\Application\DTOs\Investor\InvestorNomineeData;
 use App\Application\Services\Investor\InvestorOnboardingValidator;
 use App\Http\Requests\Investor\StoreInvestorRequest;
+use Illuminate\Support\Facades\DB;
+use App\Models\ApprovalRequest;
+use App\Http\Requests\Approval\ApproveInvestorRequest;
+use App\Http\Requests\Approval\RejectInvestorRequest;
+use App\Application\Services\Approval\ApprovalWorkflowService;
 
 class InvestorController extends Controller
 {
@@ -176,4 +181,123 @@ class InvestorController extends Controller
             'data' => new InvestorResource($investor),
         ]);
     }
+
+    public function approve(
+    ApproveInvestorRequest $request,
+    Investor $investor,
+    ApprovalWorkflowService $approvalWorkflowService,
+    AuditLogger $auditLogger
+): JsonResponse {
+    $this->authorize('approve', $investor);
+
+    $approvalRequest = ApprovalRequest::query()
+        ->where('approval_type', 'investor_onboarding')
+        ->where('entity_type', 'investor')
+        ->where('entity_id', $investor->id)
+        ->where('status', 'pending')
+        ->latest('id')
+        ->firstOrFail();
+
+    DB::transaction(function () use (
+        $request,
+        $investor,
+        $approvalRequest,
+        $approvalWorkflowService,
+        $auditLogger
+    ) {
+        $approvalWorkflowService->approve(
+            approvalRequest: $approvalRequest,
+            actedBy: $request->user()->id,
+            comments: $request->input('comments'),
+            metadata: [
+                'investor_number' => $investor->investor_number,
+            ]
+        );
+
+        $investor->update([
+            'onboarding_status' => 'approved',
+            'investor_status' => 'active',
+            'updated_by' => $request->user()->id,
+        ]);
+
+        $auditLogger->log(
+            userId: $request->user()->id,
+            action: 'investor.approved',
+            entityType: 'investor',
+            entityId: $investor->id,
+            entityReference: $investor->investor_number,
+            metadata: [
+                'comments' => $request->input('comments'),
+                'onboarding_status' => 'approved',
+                'investor_status' => 'active',
+            ],
+            request: $request
+        );
+    });
+
+    return response()->json([
+        'message' => 'Investor approved successfully.',
+        'data' => new InvestorResource($investor->fresh()->load(['contact', 'addresses', 'nominees', 'kycProfile'])),
+    ]);
+}
+
+
+public function reject(
+    RejectInvestorRequest $request,
+    Investor $investor,
+    ApprovalWorkflowService $approvalWorkflowService,
+    AuditLogger $auditLogger
+): JsonResponse {
+    $this->authorize('approve', $investor);
+
+    $approvalRequest = ApprovalRequest::query()
+        ->where('approval_type', 'investor_onboarding')
+        ->where('entity_type', 'investor')
+        ->where('entity_id', $investor->id)
+        ->where('status', 'pending')
+        ->latest('id')
+        ->firstOrFail();
+
+    DB::transaction(function () use (
+        $request,
+        $investor,
+        $approvalRequest,
+        $approvalWorkflowService,
+        $auditLogger
+    ) {
+        $approvalWorkflowService->reject(
+            approvalRequest: $approvalRequest,
+            actedBy: $request->user()->id,
+            comments: $request->input('comments'),
+            metadata: [
+                'investor_number' => $investor->investor_number,
+            ]
+        );
+
+        $investor->update([
+            'onboarding_status' => 'rejected',
+            'investor_status' => 'inactive',
+            'updated_by' => $request->user()->id,
+        ]);
+
+        $auditLogger->log(
+            userId: $request->user()->id,
+            action: 'investor.rejected',
+            entityType: 'investor',
+            entityId: $investor->id,
+            entityReference: $investor->investor_number,
+            metadata: [
+                'comments' => $request->input('comments'),
+                'onboarding_status' => 'rejected',
+                'investor_status' => 'inactive',
+            ],
+            request: $request
+        );
+    });
+
+    return response()->json([
+        'message' => 'Investor rejected successfully.',
+        'data' => new InvestorResource($investor->fresh()->load(['contact', 'addresses', 'nominees', 'kycProfile'])),
+    ]);
+}
 }

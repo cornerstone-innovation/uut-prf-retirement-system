@@ -16,4 +16,7 @@ Route::middleware(['auth:sanctum'])->prefix('investors')->group(function () {
     Route::get('/', [InvestorController::class, 'index']);
     Route::post('/', [InvestorController::class, 'store']);
     Route::get('/{investor}', [InvestorController::class, 'show']);
+    Route::post('/{investor}/approve', [InvestorController::class, 'approve']);
+    Route::post('/{investor}/reject', [InvestorController::class, 'reject']);
 });
+

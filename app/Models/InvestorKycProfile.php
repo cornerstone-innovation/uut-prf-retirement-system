@@ -48,4 +48,9 @@ class InvestorKycProfile extends Model
     {
         return $this->belongsTo(User::class, 'reviewed_by');
     }
+
+    public function documents()
+    {
+        return $this->hasMany(InvestorDocument::class, 'investor_kyc_profile_id');
+    }
 }

@@ -3,6 +3,7 @@
 namespace App\Application\Services\Approval;
 
 use App\Models\ApprovalRequest;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
 
 class ApprovalWorkflowService
@@ -38,5 +39,62 @@ class ApprovalWorkflowService
         ]);
 
         return $approvalRequest->load('actions', 'submitter', 'currentApprover');
+    }
+
+    public function approve(
+        ApprovalRequest $approvalRequest,
+        int $actedBy,
+        ?string $comments = null,
+        ?array $metadata = null
+    ): ApprovalRequest {
+        $this->ensurePending($approvalRequest);
+
+        $approvalRequest->update([
+            'status' => 'approved',
+            'decided_at' => now(),
+            'decision_reason' => $comments,
+        ]);
+
+        $approvalRequest->actions()->create([
+            'action' => 'approved',
+            'acted_by' => $actedBy,
+            'comments' => $comments,
+            'metadata' => $metadata,
+        ]);
+
+        return $approvalRequest->load('actions', 'submitter', 'currentApprover');
+    }
+
+    public function reject(
+        ApprovalRequest $approvalRequest,
+        int $actedBy,
+        ?string $comments = null,
+        ?array $metadata = null
+    ): ApprovalRequest {
+        $this->ensurePending($approvalRequest);
+
+        $approvalRequest->update([
+            'status' => 'rejected',
+            'decided_at' => now(),
+            'decision_reason' => $comments,
+        ]);
+
+        $approvalRequest->actions()->create([
+            'action' => 'rejected',
+            'acted_by' => $actedBy,
+            'comments' => $comments,
+            'metadata' => $metadata,
+        ]);
+
+        return $approvalRequest->load('actions', 'submitter', 'currentApprover');
+    }
+
+    private function ensurePending(ApprovalRequest $approvalRequest): void
+    {
+        if ($approvalRequest->status !== 'pending') {
+            throw ValidationException::withMessages([
+                'approval' => ['Only pending approval requests can be decided.'],
+            ]);
+        }
     }
 }

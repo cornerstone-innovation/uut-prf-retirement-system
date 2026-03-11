@@ -31,4 +31,8 @@ class InvestorPolicy
     {
         return $user->can('update investors');
     }
+    public function approve(User $user, Investor $investor): bool
+    {
+        return $user->can('approve investors');
+    }
 }

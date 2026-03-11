@@ -76,4 +76,14 @@ class Investor extends Model
     {
         return $this->belongsTo(User::class, 'updated_by');
     }
+    public function documents()
+    {
+        return $this->hasMany(InvestorDocument::class);
+    }
+
+    public function approvalRequests()
+    {
+        return $this->hasMany(ApprovalRequest::class, 'entity_id')
+            ->where('entity_type', 'investor');
+    }
 }

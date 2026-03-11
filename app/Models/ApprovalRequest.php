@@ -47,4 +47,9 @@ class ApprovalRequest extends Model
     {
         return $this->belongsTo(User::class, 'current_approver_id');
     }
+    public function investor()
+    {
+        return $this->belongsTo(Investor::class, 'entity_id')
+            ->where('entity_type', 'investor');
+    }
 }
