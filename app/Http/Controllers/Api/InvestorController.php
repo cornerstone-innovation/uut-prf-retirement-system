@@ -19,11 +19,7 @@ class InvestorController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        abort_unless(
-            $request->user()?->can('view investors'),
-            403,
-            'You do not have permission to view investors.'
-        );
+        $this->authorize('viewAny', Investor::class);
 
         $query = Investor::query()
             ->with(['contact', 'addresses', 'nominees', 'kycProfile']);
@@ -82,11 +78,7 @@ class InvestorController extends Controller
         CreateInvestorAction $action,
         AuditLogger $auditLogger
     ): JsonResponse {
-        abort_unless(
-            $request->user()?->can('create investors'),
-            403,
-            'You do not have permission to create investors.'
-        );
+        $this->authorize('create', Investor::class);
 
         $validated = $request->validated();
 
@@ -175,11 +167,7 @@ class InvestorController extends Controller
 
     public function show(Request $request, Investor $investor): JsonResponse
     {
-        abort_unless(
-            $request->user()?->can('view investors'),
-            403,
-            'You do not have permission to view investors.'
-        );
+        $this->authorize('view', $investor);
 
         $investor->load(['contact', 'addresses', 'nominees', 'kycProfile']);
 
