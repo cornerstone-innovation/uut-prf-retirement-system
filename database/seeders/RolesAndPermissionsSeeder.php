@@ -13,14 +13,17 @@ class RolesAndPermissionsSeeder extends Seeder
     {
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        $permissions = [
-            'create investors',
-            'view investors',
-            'update investors',
-            'approve investors',
-            'approve kyc',
-            'manage users',
-            'manage roles',
+      $permissions = [
+        'create investors',
+        'view investors',
+        'update investors',
+        'approve investors',
+        'approve kyc',
+        'upload investor documents',
+        'view investor documents',
+        'verify investor documents',
+        'manage users',
+        'manage roles',
         ];
 
         foreach ($permissions as $permission) {
@@ -40,6 +43,9 @@ class RolesAndPermissionsSeeder extends Seeder
         $superAdmin->givePermissionTo(Permission::all());
 
         $fundAdmin->givePermissionTo([
+            'upload investor documents',
+            'view investor documents',
+            'verify investor documents',
             'create investors',
             'view investors',
             'update investors',

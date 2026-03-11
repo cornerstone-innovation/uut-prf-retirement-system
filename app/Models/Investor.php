@@ -86,4 +86,15 @@ class Investor extends Model
         return $this->hasMany(ApprovalRequest::class, 'entity_id')
             ->where('entity_type', 'investor');
     }
+
+    public function directors()
+    {
+        return $this->hasMany(CompanyDirector::class);
+    }
+
+    public function identityVerifications()
+    {
+        return $this->hasMany(IdentityVerification::class, 'entity_id')
+            ->where('entity_type', 'investor');
+    }
 }

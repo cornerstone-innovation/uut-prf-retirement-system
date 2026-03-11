@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Auth\Notifications\VerifyEmail;
+use App\Models\InvestorDocument;
+use App\Policies\InvestorDocumentPolicy;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -19,6 +21,7 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        Gate::policy(InvestorDocument::class, InvestorDocumentPolicy::class);
         Gate::policy(Investor::class, InvestorPolicy::class);
 
         ResetPassword::createUrlUsing(function (object $user, string $token) {
