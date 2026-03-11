@@ -6,9 +6,15 @@ use App\Models\Investor;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use App\Application\DTOs\Investor\CreateInvestorData;
+use App\Application\Services\Approval\ApprovalWorkflowService;
 
 class CreateInvestorAction
 {
+    public function __construct(
+        private readonly ApprovalWorkflowService $approvalWorkflowService
+    ) {
+    }
+
     public function execute(CreateInvestorData $data): Investor
     {
         return DB::transaction(function () use ($data) {
@@ -62,6 +68,21 @@ class CreateInvestorAction
                 'address_verification_status' => 'pending',
                 'tax_verification_status' => 'pending',
             ]);
+
+            $this->approvalWorkflowService->submit(
+                approvalType: 'investor_onboarding',
+                entityType: 'investor',
+                entityId: $investor->id,
+                entityReference: $investor->investor_number,
+                submittedBy: $data->createdBy,
+                metadata: [
+                    'investor_type' => $investor->investor_type,
+                    'full_name' => $investor->full_name,
+                    'onboarding_status' => $investor->onboarding_status,
+                    'kyc_status' => $investor->kyc_status,
+                ],
+                comments: 'Investor onboarding submitted for approval.'
+            );
 
             return $investor->load('contact', 'addresses', 'nominees', 'kycProfile');
         });
