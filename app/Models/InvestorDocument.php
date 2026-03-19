@@ -14,6 +14,9 @@ class InvestorDocument extends Model
         'investor_id',
         'investor_kyc_profile_id',
         'investor_category_id',
+        'parent_document_id',
+        'version_number',
+        'is_current_version',
         'document_type_id',
         'original_filename',
         'stored_filename',
@@ -29,6 +32,7 @@ class InvestorDocument extends Model
         'verification_notes',
         'verified_by',
         'verified_at',
+        'replaced_at',
         'uploaded_by',
         'uploaded_at',
         'metadata',
@@ -40,9 +44,12 @@ class InvestorDocument extends Model
             'issue_date' => 'date',
             'expiry_date' => 'date',
             'verified_at' => 'datetime',
+            'replaced_at' => 'datetime',
             'uploaded_at' => 'datetime',
             'metadata' => 'array',
             'file_size_bytes' => 'integer',
+            'is_current_version' => 'boolean',
+            'version_number' => 'integer',
         ];
     }
 
@@ -74,5 +81,15 @@ class InvestorDocument extends Model
     public function uploader()
     {
         return $this->belongsTo(User::class, 'uploaded_by');
+    }
+
+    public function parentDocument()
+    {
+        return $this->belongsTo(self::class, 'parent_document_id');
+    }
+
+    public function childVersions()
+    {
+        return $this->hasMany(self::class, 'parent_document_id');
     }
 }

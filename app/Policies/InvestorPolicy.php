@@ -9,7 +9,7 @@ class InvestorPolicy
 {
     public function before(User $user, string $ability): ?bool
     {
-        return $user->hasRole('super-admin') ? true : null;
+        return $user->hasRole('super_admin') ? true : null;
     }
 
     public function viewAny(User $user): bool
@@ -31,8 +31,9 @@ class InvestorPolicy
     {
         return $user->can('update investors');
     }
+
     public function approve(User $user, Investor $investor): bool
     {
-        return $user->can('approve investors');
+        return $user->can('approve investors') || $user->can('approve workflow actions');
     }
 }

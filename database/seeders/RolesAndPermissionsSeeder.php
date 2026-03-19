@@ -13,23 +13,36 @@ class RolesAndPermissionsSeeder extends Seeder
     {
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-      $permissions = [
-        'create investors',
-        'view investors',
-        'update investors',
-        'approve investors',
-        'approve kyc',
-        'upload investor documents',
-        'view investor documents',
-        'verify investor documents',
-        'manage users',
-        'manage roles',
+        $permissions = [
+            // Investor management
+            'create investors',
+            'view investors',
+            'update investors',
+            'approve investors',
+
+            // KYC
+            'approve kyc',
+            'upload investor documents',
+            'view investor documents',
+            'verify investor documents',
+
+            // System
+            'manage users',
+            'manage roles',
+
+            // NAV Engine
+            'view nav records',
+            'create nav records',
+            'approve nav records',
+            'publish nav records',
+            'manage cutoff rules',
         ];
 
         foreach ($permissions as $permission) {
             Permission::firstOrCreate(['name' => $permission]);
         }
 
+        // Roles
         $superAdmin = Role::firstOrCreate(['name' => 'super-admin']);
         $fundAdmin = Role::firstOrCreate(['name' => 'fund-admin']);
         $operations = Role::firstOrCreate(['name' => 'operations']);
@@ -40,49 +53,113 @@ class RolesAndPermissionsSeeder extends Seeder
         $distributor = Role::firstOrCreate(['name' => 'distributor']);
         $investor = Role::firstOrCreate(['name' => 'investor']);
 
-        $superAdmin->givePermissionTo(Permission::all());
+        /*
+        |--------------------------------------------------------------------------
+        | Super Admin → everything
+        |--------------------------------------------------------------------------
+        */
+        $superAdmin->syncPermissions(Permission::all());
 
-        $fundAdmin->givePermissionTo([
+        /*
+        |--------------------------------------------------------------------------
+        | Fund Admin (Full operational control incl NAV)
+        |--------------------------------------------------------------------------
+        */
+        $fundAdmin->syncPermissions([
+            'create investors',
+            'view investors',
+            'update investors',
+            'approve investors',
+
             'upload investor documents',
             'view investor documents',
             'verify investor documents',
-            'create investors',
-            'view investors',
-            'update investors',
-            'approve investors',
+
             'manage users',
+
+            // NAV FULL CONTROL
+            'view nav records',
+            'create nav records',
+            'approve nav records',
+            'publish nav records',
+            'manage cutoff rules',
         ]);
 
-        $operations->givePermissionTo([
+        /*
+        |--------------------------------------------------------------------------
+        | Operations (NAV maker role)
+        |--------------------------------------------------------------------------
+        */
+        $operations->syncPermissions([
             'create investors',
             'view investors',
             'update investors',
+
+            // NAV → CREATE ONLY (maker)
+            'view nav records',
+            'create nav records',
         ]);
 
-        $compliance->givePermissionTo([
+        /*
+        |--------------------------------------------------------------------------
+        | Compliance (NAV approver role)
+        |--------------------------------------------------------------------------
+        */
+        $compliance->syncPermissions([
             'view investors',
             'approve investors',
             'approve kyc',
+
+            // NAV → APPROVER
+            'view nav records',
+            'approve nav records',
         ]);
 
-        $finance->givePermissionTo([
+        /*
+        |--------------------------------------------------------------------------
+        | Finance (viewer)
+        |--------------------------------------------------------------------------
+        */
+        $finance->syncPermissions([
             'view investors',
+            'view nav records',
         ]);
 
-        $trustee->givePermissionTo([
+        /*
+        |--------------------------------------------------------------------------
+        | Trustee (viewer + oversight)
+        |--------------------------------------------------------------------------
+        */
+        $trustee->syncPermissions([
             'view investors',
+            'view nav records',
         ]);
 
-        $customerService->givePermissionTo([
+        /*
+        |--------------------------------------------------------------------------
+        | Customer Service
+        |--------------------------------------------------------------------------
+        */
+        $customerService->syncPermissions([
             'create investors',
             'view investors',
         ]);
 
-        $distributor->givePermissionTo([
+        /*
+        |--------------------------------------------------------------------------
+        | Distributor
+        |--------------------------------------------------------------------------
+        */
+        $distributor->syncPermissions([
             'create investors',
             'view investors',
         ]);
 
-        $investor->givePermissionTo([]);
+        /*
+        |--------------------------------------------------------------------------
+        | Investor (no admin permissions)
+        |--------------------------------------------------------------------------
+        */
+        $investor->syncPermissions([]);
     }
 }

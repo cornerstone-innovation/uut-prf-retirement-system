@@ -1,0 +1,47 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+
+class KycCaseAssignment extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'uuid',
+        'investor_id',
+        'assigned_to',
+        'assigned_by',
+        'status',
+        'assignment_notes',
+        'assigned_at',
+        'ended_at',
+        'metadata',
+    ];
+
+    protected function casts(): array
+    {
+        return [
+            'assigned_at' => 'datetime',
+            'ended_at' => 'datetime',
+            'metadata' => 'array',
+        ];
+    }
+
+    public function investor()
+    {
+        return $this->belongsTo(Investor::class);
+    }
+
+    public function assignee()
+    {
+        return $this->belongsTo(User::class, 'assigned_to');
+    }
+
+    public function assigner()
+    {
+        return $this->belongsTo(User::class, 'assigned_by');
+    }
+}

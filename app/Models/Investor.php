@@ -13,6 +13,7 @@ class Investor extends Model
         'uuid',
         'investor_number',
         'investor_type',
+        'investor_category_id',
         'first_name',
         'middle_name',
         'last_name',
@@ -96,5 +97,45 @@ class Investor extends Model
     {
         return $this->hasMany(IdentityVerification::class, 'entity_id')
             ->where('entity_type', 'investor');
+    }
+    public function investorCategory()
+    {
+        return $this->belongsTo(InvestorCategory::class);
+    }
+    public function kycReviews()
+    {
+        return $this->hasMany(KycReview::class);
+    }
+
+        public function kycCaseAssignments()
+    {
+        return $this->hasMany(KycCaseAssignment::class);
+    }
+
+    public function activeKycCaseAssignment()
+    {
+        return $this->hasOne(KycCaseAssignment::class)->where('status', 'active')->latestOfMany();
+    }
+
+    public function kycCaseNotes()
+    {
+        return $this->hasMany(KycCaseNote::class);
+    }
+    public function purchaseRequests()
+    {
+        return $this->hasMany(PurchaseRequest::class);
+    }
+    public function payments()
+    {
+        return $this->hasMany(Payment::class);
+    }
+    public function investmentTransactions()
+    {
+        return $this->hasMany(InvestmentTransaction::class);
+    }
+
+    public function unitLots()
+    {
+        return $this->hasMany(UnitLot::class);
     }
 }

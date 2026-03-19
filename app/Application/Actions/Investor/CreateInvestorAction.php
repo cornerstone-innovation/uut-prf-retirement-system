@@ -3,6 +3,7 @@
 namespace App\Application\Actions\Investor;
 
 use App\Models\Investor;
+use App\Models\InvestorCategory;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use App\Application\DTOs\Investor\CreateInvestorData;
@@ -18,10 +19,13 @@ class CreateInvestorAction
     public function execute(CreateInvestorData $data): Investor
     {
         return DB::transaction(function () use ($data) {
+            $investorCategory = $this->resolveInvestorCategory($data);
+
             $investor = Investor::create([
                 'uuid' => (string) Str::uuid(),
                 'investor_number' => $this->generateInvestorNumber(),
                 'investor_type' => $data->investorType,
+                'investor_category_id' => $investorCategory?->id,
                 'first_name' => $data->firstName,
                 'middle_name' => $data->middleName,
                 'last_name' => $data->lastName,
@@ -61,13 +65,14 @@ class CreateInvestorAction
                 $investor->nominees()->create($nominee->toArray());
             }
 
-            $investor->kycProfile()->create([
-                'kyc_reference' => $this->generateKycReference(),
-                'document_status' => 'incomplete',
-                'identity_verification_status' => 'pending',
-                'address_verification_status' => 'pending',
-                'tax_verification_status' => 'pending',
-            ]);
+           $investor->kycProfile()->create([
+            'kyc_reference' => $this->generateKycReference(),
+            'kyc_tier' => 'tier_0',
+            'document_status' => 'incomplete',
+            'identity_verification_status' => 'pending',
+            'address_verification_status' => 'pending',
+            'tax_verification_status' => 'pending',
+        ]);
 
             $this->approvalWorkflowService->submit(
                 approvalType: 'investor_onboarding',
@@ -77,6 +82,8 @@ class CreateInvestorAction
                 submittedBy: $data->createdBy,
                 metadata: [
                     'investor_type' => $investor->investor_type,
+                    'investor_category_id' => $investor->investor_category_id,
+                    'investor_category_code' => $investorCategory?->code,
                     'full_name' => $investor->full_name,
                     'onboarding_status' => $investor->onboarding_status,
                     'kyc_status' => $investor->kyc_status,
@@ -84,19 +91,35 @@ class CreateInvestorAction
                 comments: 'Investor onboarding submitted for approval.'
             );
 
-            return $investor->load('contact', 'addresses', 'nominees', 'kycProfile');
+            return $investor->load('investorCategory', 'contact', 'addresses', 'nominees', 'kycProfile');
         });
+    }
+
+    private function resolveInvestorCategory(CreateInvestorData $data): ?InvestorCategory
+    {
+        $categoryCode = match ($data->investorType) {
+            'individual' => 'individual',
+            'corporate' => 'corporate',
+            default => 'individual',
+        };
+
+        return InvestorCategory::query()
+            ->where('code', $categoryCode)
+            ->where('is_active', true)
+            ->first();
     }
 
     private function generateInvestorNumber(): string
     {
-        $nextId = Investor::max('id') + 1;
+        $nextId = (Investor::max('id') ?? 0) + 1;
+
         return 'INV-' . str_pad((string) $nextId, 6, '0', STR_PAD_LEFT);
     }
 
     private function generateKycReference(): string
     {
-        $nextId = Investor::count() + 1;
+        $nextId = (Investor::count() ?? 0) + 1;
+
         return 'KYC-' . str_pad((string) $nextId, 6, '0', STR_PAD_LEFT);
     }
 }

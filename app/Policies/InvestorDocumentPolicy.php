@@ -31,4 +31,14 @@ class InvestorDocumentPolicy
     {
         return $user->can('verify investor documents');
     }
+
+    public function reject(User $user, InvestorDocument $investorDocument): bool
+    {
+        return $user->can('verify investor documents');
+    }
+
+    public function download(User $user, InvestorDocument $investorDocument): bool
+    {
+        return $user->can('view investor documents');
+    }
 }

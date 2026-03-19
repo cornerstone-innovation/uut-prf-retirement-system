@@ -13,6 +13,7 @@ class DatabaseSeeder extends Seeder
             InvestorCategorySeeder::class,
             DocumentTypeSeeder::class,
             CategoryDocumentRequirementSeeder::class,
+            OperationalRolesAndPermissionsSeeder::class,
         ]);
     }
 }

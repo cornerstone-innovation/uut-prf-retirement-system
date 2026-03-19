@@ -35,4 +35,13 @@ return [
         ],
     ],
 
+    'smile_id' => [
+    'enabled' => env('SMILE_ID_ENABLED', false),
+    'mode' => env('SMILE_ID_MODE', 'mock'),
+    'api_key' => env('SMILE_ID_API_KEY'),
+    'partner_id' => env('SMILE_ID_PARTNER_ID'),
+    'callback_url' => env('SMILE_ID_CALLBACK_URL'),
+    'base_url' => env('SMILE_ID_BASE_URL'),
+],
+
 ];

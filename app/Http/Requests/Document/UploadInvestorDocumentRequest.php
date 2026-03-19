@@ -19,6 +19,7 @@ class UploadInvestorDocumentRequest extends FormRequest
             'document_number' => ['nullable', 'string', 'max:255'],
             'issue_date' => ['nullable', 'date'],
             'expiry_date' => ['nullable', 'date'],
+            'replace_document_id' => ['nullable', 'exists:investor_documents,id'],
         ];
     }
 }

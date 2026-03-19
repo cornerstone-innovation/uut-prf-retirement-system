@@ -10,6 +10,10 @@ class InvestorKycProfile extends Model
     use HasFactory;
 
     protected $fillable = [
+        'kyc_tier',
+        'identity_verified_at',
+        'profile_completed_at',
+        'documents_completed_at',
         'investor_id',
         'kyc_reference',
         'document_status',
@@ -31,11 +35,14 @@ class InvestorKycProfile extends Model
     protected function casts(): array
     {
         return [
-            'submitted_at' => 'datetime',
-            'reviewed_at' => 'datetime',
-            'approved_at' => 'datetime',
-            'rejected_at' => 'datetime',
-            'expires_at' => 'datetime',
+                'submitted_at' => 'datetime',
+                'reviewed_at' => 'datetime',
+                'approved_at' => 'datetime',
+                'rejected_at' => 'datetime',
+                'expires_at' => 'datetime',
+                'identity_verified_at' => 'datetime',
+                'profile_completed_at' => 'datetime',
+                'documents_completed_at' => 'datetime',
         ];
     }
 

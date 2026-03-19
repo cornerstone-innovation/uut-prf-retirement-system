@@ -48,4 +48,9 @@ class InvestorDocumentStorageService
 
         return $this->encryptedFileService->decrypt($encryptedContents);
     }
+
+    public function exists(string $disk, string $path): bool
+    {
+        return Storage::disk($disk)->exists($path);
+    }
 }
