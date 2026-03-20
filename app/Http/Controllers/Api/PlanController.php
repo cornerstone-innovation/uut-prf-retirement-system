@@ -19,15 +19,8 @@ class PlanController extends Controller
         Request $request,
         PlanEligibilityService $eligibilityService
     ): JsonResponse {
-        $investor = $request->user()?->investor;
-
-        if (! $investor) {
-            throw ValidationException::withMessages([
-                'investor' => ['Authenticated user is not linked to an investor profile.'],
-            ]);
-        }
-
-        $eligibilityService->ensureCanViewProducts($investor);
+        $user = $request->user();
+        $investor = $user?->investor;
 
         $query = Plan::query()
             ->with(['category', 'activeRule'])
@@ -39,6 +32,17 @@ class PlanController extends Controller
             $query->whereHas('category', function ($q) use ($categoryCode) {
                 $q->where('code', $categoryCode);
             });
+        }
+
+        /**
+         * Investor-facing behavior:
+         * investor must be linked and allowed to view products.
+         *
+         * Ops-facing behavior:
+         * allow access without investor linkage.
+         */
+        if ($investor) {
+            $eligibilityService->ensureCanViewProducts($investor);
         }
 
         $plans = $query->orderBy('id')->get();
@@ -54,15 +58,19 @@ class PlanController extends Controller
         Plan $plan,
         PlanEligibilityService $eligibilityService
     ): JsonResponse {
-        $investor = $request->user()?->investor;
+        $user = $request->user();
+        $investor = $user?->investor;
 
-        if (! $investor) {
-            throw ValidationException::withMessages([
-                'investor' => ['Authenticated user is not linked to an investor profile.'],
-            ]);
+        /**
+         * Investor-facing behavior:
+         * investor must be linked and allowed to view products.
+         *
+         * Ops-facing behavior:
+         * allow access without investor linkage.
+         */
+        if ($investor) {
+            $eligibilityService->ensureCanViewProducts($investor);
         }
-
-        $eligibilityService->ensureCanViewProducts($investor);
 
         $plan->load(['category', 'activeRule']);
 

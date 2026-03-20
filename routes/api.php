@@ -48,11 +48,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/investors/{investor}/kyc-case-assign', [KycCaseManagementController::class, 'assign']);
     Route::get('/investors/{investor}/kyc-case-notes', [KycCaseManagementController::class, 'notes']);
     Route::post('/investors/{investor}/kyc-case-notes', [KycCaseManagementController::class, 'storeNote']);
-    Route::get('/plans', [PlanController::class, 'index']);
-    Route::get('/plans/{plan}', [PlanController::class, 'show']);
     Route::post('/plans/{plan}/check-purchase-eligibility', [PlanController::class, 'checkPurchaseEligibility']);
-    Route::get('/plans', [PlanController::class, 'index']);
-    Route::get('/plans/{plan}', [PlanController::class, 'show']);
     Route::post('/plans/{plan}/purchase-eligibility', [PlanController::class, 'purchaseEligibility']);
     Route::post('/plans/{plan}/purchase-preview', [PlanController::class, 'purchasePreview']);
     Route::get('/purchase-requests', [PurchaseRequestController::class, 'index']);
@@ -75,6 +71,11 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/business-holidays', [BusinessHolidayController::class, 'index']);
     Route::post('/business-holidays', [BusinessHolidayController::class, 'store']);
     Route::patch('/business-holidays/{businessHoliday}', [BusinessHolidayController::class, 'update']);
+    Route::get('/plans', [PlanController::class, 'index']);
+    Route::get('/plans/{plan}', [PlanController::class, 'show']);
+    Route::post('/plans/{plan}/check-purchase-eligibility', [PlanController::class, 'checkPurchaseEligibility']);
+    Route::post('/plans/{plan}/purchase-eligibility', [PlanController::class, 'purchaseEligibility']);
+    Route::post('/plans/{plan}/purchase-preview', [PlanController::class, 'purchasePreview']);
   
 
 
