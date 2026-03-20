@@ -62,11 +62,14 @@ class Plan extends Model
         return $this->hasMany(PlanRule::class);
     }
 
-    public function activeRule()
-    {
-        return $this->hasOne(PlanRule::class)->where('is_active', true)->latestOfMany();
-    }
-    public function purchaseRequests()
+public function activeRule()
+        {
+            return $this->hasOne(PlanRule::class)
+                ->where('is_active', true)
+                ->where('status', 'active')
+                ->latestOfMany();
+        }
+            public function purchaseRequests()
     {
         return $this->hasMany(PurchaseRequest::class);
     }
