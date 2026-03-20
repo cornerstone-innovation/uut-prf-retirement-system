@@ -19,6 +19,8 @@ use App\Http\Controllers\Api\PortfolioController;
 use App\Http\Controllers\Api\NavRecordController;
 use App\Http\Controllers\Api\CutoffTimeRuleController;
 use App\Http\Controllers\Api\BusinessHolidayController;
+use App\Http\Controllers\Api\FundController;
+use App\Http\Controllers\Api\PlanCategoryController;
 
 
 
@@ -79,6 +81,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::patch('/plans/{plan}/rules/{planRule}', [PlanController::class, 'updateRule']);
     Route::post('/plans/{plan}/purchase-eligibility', [PlanController::class, 'purchaseEligibility']);
     Route::post('/plans/{plan}/purchase-preview', [PlanController::class, 'purchasePreview']);
+    Route::get('/funds', [FundController::class, 'index']);
+    Route::get('/plan-categories', [PlanCategoryController::class, 'index']);
+    
   
 
 
