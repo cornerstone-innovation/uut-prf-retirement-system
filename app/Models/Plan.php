@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Str;
 
 class Plan extends Model
 {
@@ -96,5 +97,13 @@ public function activeRule()
     public function cutoffTimeRules()
     {
         return $this->hasMany(CutoffTimeRule::class);
+    }
+        protected static function booted()
+    {
+        static::creating(function ($model) {
+            if (! $model->uuid) {
+                $model->uuid = (string) Str::uuid();
+            }
+        });
     }
 }
