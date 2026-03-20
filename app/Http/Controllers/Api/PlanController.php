@@ -8,66 +8,45 @@ use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PlanResource;
 use App\Application\Services\Plan\PlanEligibilityService;
-use Illuminate\Validation\ValidationException;
+use App\Application\Services\Purchase\PurchasePreviewService;
+use App\Http\Requests\Plan\StorePlanRequest;
+use App\Http\Requests\Plan\UpdatePlanRequest;
 use App\Http\Requests\Plan\CheckPurchaseEligibilityRequest;
 use App\Http\Requests\Plan\PurchasePreviewRequest;
-use App\Application\Services\Purchase\PurchasePreviewService;
+use Illuminate\Validation\ValidationException;
 
 class PlanController extends Controller
 {
-    public function index(
-        Request $request,
-        PlanEligibilityService $eligibilityService
-    ): JsonResponse {
+    public function index(Request $request, PlanEligibilityService $eligibilityService): JsonResponse
+    {
         $user = $request->user();
         $investor = $user?->investor;
 
         $query = Plan::query()
-            ->with(['category', 'activeRule'])
-            ->whereIn('status', ['approved', 'active']);
+            ->with(['category', 'activeRule']);
+
+        if ($investor) {
+            $eligibilityService->ensureCanViewProducts($investor);
+
+            $query->whereIn('status', ['approved', 'active']);
+        }
 
         if ($request->filled('category_code')) {
-            $categoryCode = $request->string('category_code')->toString();
-
-            $query->whereHas('category', function ($q) use ($categoryCode) {
-                $q->where('code', $categoryCode);
+            $query->whereHas('category', function ($q) use ($request) {
+                $q->where('code', $request->string('category_code'));
             });
         }
 
-        /**
-         * Investor-facing behavior:
-         * investor must be linked and allowed to view products.
-         *
-         * Ops-facing behavior:
-         * allow access without investor linkage.
-         */
-        if ($investor) {
-            $eligibilityService->ensureCanViewProducts($investor);
-        }
-
-        $plans = $query->orderBy('id')->get();
-
         return response()->json([
             'message' => 'Plans retrieved successfully.',
-            'data' => PlanResource::collection($plans),
+            'data' => PlanResource::collection($query->orderBy('id')->get()),
         ]);
     }
 
-    public function show(
-        Request $request,
-        Plan $plan,
-        PlanEligibilityService $eligibilityService
-    ): JsonResponse {
-        $user = $request->user();
-        $investor = $user?->investor;
+    public function show(Request $request, Plan $plan, PlanEligibilityService $eligibilityService): JsonResponse
+    {
+        $investor = $request->user()?->investor;
 
-        /**
-         * Investor-facing behavior:
-         * investor must be linked and allowed to view products.
-         *
-         * Ops-facing behavior:
-         * allow access without investor linkage.
-         */
         if ($investor) {
             $eligibilityService->ensureCanViewProducts($investor);
         }
@@ -76,6 +55,44 @@ class PlanController extends Controller
 
         return response()->json([
             'message' => 'Plan retrieved successfully.',
+            'data' => new PlanResource($plan),
+        ]);
+    }
+
+    public function store(StorePlanRequest $request): JsonResponse
+    {
+        $user = $request->user();
+
+        abort_unless(
+            $user->hasRole('super-admin') || $user->can('manage plans'),
+            403
+        );
+
+        $plan = Plan::create($request->validated());
+
+        $plan->load(['category', 'activeRule']);
+
+        return response()->json([
+            'message' => 'Plan created successfully.',
+            'data' => new PlanResource($plan),
+        ], 201);
+    }
+
+    public function update(UpdatePlanRequest $request, Plan $plan): JsonResponse
+    {
+        $user = $request->user();
+
+        abort_unless(
+            $user->hasRole('super-admin') || $user->can('manage plans'),
+            403
+        );
+
+        $plan->update($request->validated());
+
+        $plan->load(['category', 'activeRule']);
+
+        return response()->json([
+            'message' => 'Plan updated successfully.',
             'data' => new PlanResource($plan),
         ]);
     }
