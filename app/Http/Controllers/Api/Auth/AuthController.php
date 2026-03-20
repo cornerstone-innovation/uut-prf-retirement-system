@@ -17,6 +17,56 @@ use App\Http\Requests\Auth\ResetPasswordRequest;
 
 class AuthController extends Controller
 {
+    public function login(Request $request): JsonResponse
+{
+    $validated = $request->validate([
+        'email' => ['required', 'email'],
+        'password' => ['required', 'string'],
+    ]);
+
+    $user = User::where('email', $validated['email'])->first();
+
+    if (! $user || ! Hash::check($validated['password'], $user->password)) {
+        throw ValidationException::withMessages([
+            'email' => ['The provided credentials are incorrect.'],
+        ]);
+    }
+
+    if (! $user->is_active) {
+        return response()->json([
+            'message' => 'This user account is inactive.',
+        ], 403);
+    }
+
+    $token = $user->createToken('ops-web')->plainTextToken;
+
+    return response()->json([
+        'message' => 'Login successful.',
+        'token' => $token,
+        'user' => [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'phone' => $user->phone,
+            'roles' => $user->getRoleNames()->values(),
+            'permissions' => $user->getAllPermissions()->pluck('name')->values(),
+        ],
+    ]);
+}
+
+public function user(Request $request): JsonResponse
+{
+    $user = $request->user();
+
+    return response()->json([
+        'id' => $user->id,
+        'name' => $user->name,
+        'email' => $user->email,
+        'phone' => $user->phone,
+        'roles' => $user->getRoleNames()->values(),
+        'permissions' => $user->getAllPermissions()->pluck('name')->values(),
+    ]);
+}
     public function logout(Request $request): JsonResponse
     {
         $user = $request->user();
