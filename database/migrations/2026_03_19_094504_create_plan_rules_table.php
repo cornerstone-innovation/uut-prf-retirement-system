@@ -18,6 +18,21 @@ return new class extends Migration
             $table->decimal('minimum_additional_investment', 18, 2)->nullable();
             $table->decimal('minimum_redemption_amount', 18, 2)->nullable();
             $table->decimal('minimum_balance_after_redemption', 18, 2)->nullable();
+            $table->decimal('maximum_initial_investment', 18, 2)->nullable();
+            $table->decimal('maximum_additional_investment', 18, 2)->nullable();
+
+            // Exit rules
+            $table->decimal('exit_fee_percentage', 5, 2)->nullable();
+            $table->unsignedInteger('exit_fee_period_days')->nullable();
+
+            // SIP
+            $table->string('sip_frequency')->nullable();
+
+            // Currency
+            $table->string('currency')->default('TZS');
+
+            // Optional: status upgrade
+            $table->string('status')->default('active');
 
             $table->unsignedInteger('lock_in_period_years')->default(0);
 
@@ -42,6 +57,8 @@ return new class extends Migration
         });
     }
 
+
+    
     public function down(): void
     {
         Schema::dropIfExists('plan_rules');
