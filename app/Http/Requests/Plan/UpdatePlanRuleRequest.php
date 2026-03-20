@@ -4,7 +4,7 @@ namespace App\Http\Requests\Plan;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class UpdatePlanRuleRequest extends FormRequest
+class UpdatePlanRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -13,32 +13,18 @@ class UpdatePlanRuleRequest extends FormRequest
 
     public function rules(): array
     {
+        $planId = $this->route('plan')->id;
+
         return [
-            'minimum_initial_investment' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'maximum_initial_investment' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'minimum_additional_investment' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'maximum_additional_investment' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'minimum_redemption_amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'minimum_balance_after_redemption' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-
-            'lock_in_period_years' => ['sometimes', 'nullable', 'integer', 'min:0'],
-
-            'switching_allowed' => ['sometimes', 'boolean'],
-            'sip_allowed' => ['sometimes', 'boolean'],
-            'minimum_sip_amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'sip_frequency' => ['sometimes', 'nullable', 'string', 'max:50'],
-
-            'option_growth' => ['sometimes', 'boolean'],
-            'option_dividend' => ['sometimes', 'boolean'],
-            'option_dividend_reinvestment' => ['sometimes', 'boolean'],
-
-            'exit_fee_percentage' => ['sometimes', 'nullable', 'numeric', 'min:0'],
-            'exit_fee_period_days' => ['sometimes', 'nullable', 'integer', 'min:0'],
-
-            'currency' => ['sometimes', 'nullable', 'string', 'max:10'],
-            'status' => ['sometimes', 'nullable', 'in:draft,active,inactive'],
-            'is_active' => ['sometimes', 'boolean'],
-
+            'fund_id' => ['sometimes', 'required', 'exists:funds,id'],
+            'plan_category_id' => ['sometimes', 'nullable', 'exists:plan_categories,id'],
+            'code' => ['sometimes', 'required', 'string', 'max:50', 'unique:plans,code,' . $planId],
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'description' => ['sometimes', 'nullable', 'string'],
+            'status' => ['sometimes', 'required', 'in:draft,pending_approval,approved,active,inactive'],
+            'is_default' => ['sometimes', 'boolean'],
+            'investment_objective' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'target_audience' => ['sometimes', 'nullable', 'string', 'max:255'],
             'metadata' => ['sometimes', 'nullable', 'array'],
         ];
     }

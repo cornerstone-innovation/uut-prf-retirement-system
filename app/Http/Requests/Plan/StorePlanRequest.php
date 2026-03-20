@@ -8,20 +8,22 @@ class StorePlanRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; // controlled in controller
+        return true;
     }
 
     public function rules(): array
     {
         return [
-            'code' => 'required|string|max:20|unique:plans,code',
-            'name' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'category_id' => 'nullable|exists:investor_categories,id',
-            'status' => 'required|in:draft,approved,active,inactive',
-            'is_default' => 'boolean',
-            'investment_objective' => 'nullable|string',
-            'target_audience' => 'nullable|string',
+            'fund_id' => ['required', 'exists:funds,id'],
+            'plan_category_id' => ['nullable', 'exists:plan_categories,id'],
+            'code' => ['required', 'string', 'max:50', 'unique:plans,code'],
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'status' => ['required', 'in:draft,pending_approval,approved,active,inactive'],
+            'is_default' => ['nullable', 'boolean'],
+            'investment_objective' => ['nullable', 'string', 'max:255'],
+            'target_audience' => ['nullable', 'string', 'max:255'],
+            'metadata' => ['nullable', 'array'],
         ];
     }
 }
