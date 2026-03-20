@@ -3,17 +3,21 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Plan;
+use App\Models\PlanRule;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PlanResource;
+use Illuminate\Validation\ValidationException;
+use App\Application\Services\Plan\PlanRuleService;
 use App\Application\Services\Plan\PlanEligibilityService;
 use App\Application\Services\Purchase\PurchasePreviewService;
 use App\Http\Requests\Plan\StorePlanRequest;
 use App\Http\Requests\Plan\UpdatePlanRequest;
+use App\Http\Requests\Plan\StorePlanRuleRequest;
+use App\Http\Requests\Plan\UpdatePlanRuleRequest;
 use App\Http\Requests\Plan\CheckPurchaseEligibilityRequest;
 use App\Http\Requests\Plan\PurchasePreviewRequest;
-use Illuminate\Validation\ValidationException;
 
 class PlanController extends Controller
 {
@@ -23,18 +27,21 @@ class PlanController extends Controller
         $investor = $user?->investor;
 
         $query = Plan::query()
-            ->with(['category', 'activeRule']);
+            ->with(['fund', 'category', 'activeRule']);
 
         if ($investor) {
             $eligibilityService->ensureCanViewProducts($investor);
-
             $query->whereIn('status', ['approved', 'active']);
         }
 
         if ($request->filled('category_code')) {
             $query->whereHas('category', function ($q) use ($request) {
-                $q->where('code', $request->string('category_code'));
+                $q->where('code', $request->string('category_code')->toString());
             });
+        }
+
+        if ($request->filled('fund_id')) {
+            $query->where('fund_id', $request->integer('fund_id'));
         }
 
         return response()->json([
@@ -51,7 +58,7 @@ class PlanController extends Controller
             $eligibilityService->ensureCanViewProducts($investor);
         }
 
-        $plan->load(['category', 'activeRule']);
+        $plan->load(['fund', 'category', 'activeRule']);
 
         return response()->json([
             'message' => 'Plan retrieved successfully.',
@@ -68,9 +75,13 @@ class PlanController extends Controller
             403
         );
 
-        $plan = Plan::create($request->validated());
+        $data = $request->validated();
+        $data['created_by'] = $user->id;
+        $data['updated_by'] = $user->id;
 
-        $plan->load(['category', 'activeRule']);
+        $plan = Plan::create($data);
+
+        $plan->load(['fund', 'category', 'activeRule']);
 
         return response()->json([
             'message' => 'Plan created successfully.',
@@ -87,12 +98,71 @@ class PlanController extends Controller
             403
         );
 
-        $plan->update($request->validated());
+        $data = $request->validated();
+        $data['updated_by'] = $user->id;
 
-        $plan->load(['category', 'activeRule']);
+        $plan->update($data);
+
+        $plan->load(['fund', 'category', 'activeRule']);
 
         return response()->json([
             'message' => 'Plan updated successfully.',
+            'data' => new PlanResource($plan),
+        ]);
+    }
+
+    public function storeRule(
+        StorePlanRuleRequest $request,
+        Plan $plan,
+        PlanRuleService $planRuleService
+    ): JsonResponse {
+        $user = $request->user();
+
+        abort_unless(
+            $user->hasRole('super-admin') || $user->can('manage plans'),
+            403
+        );
+
+        $planRuleService->createRule(
+            plan: $plan,
+            data: $request->validated(),
+            userId: $user->id,
+        );
+
+        $plan->load(['fund', 'category', 'activeRule']);
+
+        return response()->json([
+            'message' => 'Plan rule created successfully.',
+            'data' => new PlanResource($plan),
+        ], 201);
+    }
+
+    public function updateRule(
+        UpdatePlanRuleRequest $request,
+        Plan $plan,
+        PlanRule $planRule,
+        PlanRuleService $planRuleService
+    ): JsonResponse {
+        $user = $request->user();
+
+        abort_unless(
+            $user->hasRole('super-admin') || $user->can('manage plans'),
+            403
+        );
+
+        abort_unless($planRule->plan_id === $plan->id, 404);
+
+        $planRuleService->updateRule(
+            plan: $plan,
+            planRule: $planRule,
+            data: $request->validated(),
+            userId: $user->id,
+        );
+
+        $plan->load(['fund', 'category', 'activeRule']);
+
+        return response()->json([
+            'message' => 'Plan rule updated successfully.',
             'data' => new PlanResource($plan),
         ]);
     }

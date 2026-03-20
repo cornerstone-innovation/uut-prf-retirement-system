@@ -73,7 +73,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::patch('/business-holidays/{businessHoliday}', [BusinessHolidayController::class, 'update']);
     Route::get('/plans', [PlanController::class, 'index']);
     Route::get('/plans/{plan}', [PlanController::class, 'show']);
-    Route::post('/plans/{plan}/check-purchase-eligibility', [PlanController::class, 'checkPurchaseEligibility']);
+    Route::post('/plans', [PlanController::class, 'store']);
+    Route::patch('/plans/{plan}', [PlanController::class, 'update']);
+    Route::post('/plans/{plan}/rules', [PlanController::class, 'storeRule']);
+    Route::patch('/plans/{plan}/rules/{planRule}', [PlanController::class, 'updateRule']);
     Route::post('/plans/{plan}/purchase-eligibility', [PlanController::class, 'purchaseEligibility']);
     Route::post('/plans/{plan}/purchase-preview', [PlanController::class, 'purchasePreview']);
   
