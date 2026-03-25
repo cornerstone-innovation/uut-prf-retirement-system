@@ -3,192 +3,173 @@
 namespace App\Application\Services\Onboarding;
 
 use App\Models\Investor;
+use App\Models\InvestorCategory;
 use App\Models\InvestorOnboardingSession;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
-use App\Application\Actions\Investor\CreateInvestorAction;
-use App\Application\DTOs\Investor\CreateInvestorData;
-use App\Application\DTOs\Investor\InvestorAddressData;
-use App\Application\DTOs\Investor\InvestorNomineeData;
-use App\Application\Services\Investor\InvestorOnboardingValidator;
 use App\Application\Services\Auth\InvestorAccountProvisioningService;
 
 class InvestorOnboardingService
 {
     public function __construct(
-        private readonly InvestorOnboardingValidator $validator,
-        private readonly CreateInvestorAction $createInvestorAction,
-        private readonly InvestorAccountProvisioningService $accountProvisioningService,
+        private readonly InvestorAccountProvisioningService $accountProvisioningService
     ) {
     }
 
-    public function start(array $payload): InvestorOnboardingSession
+    public function start(string $investorType, string $phoneNumber, ?string $nidaNumber = null): InvestorOnboardingSession
     {
         return InvestorOnboardingSession::create([
             'uuid' => (string) Str::uuid(),
-            'investor_type' => $payload['investor_type'],
-            'phone_number' => $payload['phone_number'],
-            'nida_number' => $payload['nida_number'] ?? null,
+            'investor_type' => $investorType,
+            'phone_number' => $phoneNumber,
+            'nida_number' => $nidaNumber,
             'current_step' => 'started',
             'status' => 'active',
-            'payload_snapshot' => $payload,
-            'expires_at' => now()->addHours(24),
+            'expires_at' => now()->addDay(),
         ]);
     }
 
-    public function findActiveSessionByUuid(string $uuid): InvestorOnboardingSession
+    public function markPhoneVerified(InvestorOnboardingSession $session): InvestorOnboardingSession
     {
-        $session = InvestorOnboardingSession::query()
-            ->where('uuid', $uuid)
-            ->where('status', 'active')
-            ->first();
+        $session->update([
+            'phone_verified_at' => now(),
+            'current_step' => 'phone_verified',
+        ]);
 
-        if (! $session) {
-            throw ValidationException::withMessages([
-                'session_id' => ['Onboarding session was not found or is no longer active.'],
-            ]);
-        }
-
-        if ($session->expires_at && now()->greaterThan($session->expires_at)) {
-            $session->update(['status' => 'expired']);
-
-            throw ValidationException::withMessages([
-                'session_id' => ['Onboarding session has expired.'],
-            ]);
-        }
-
-        return $session;
+        return $session->fresh();
     }
 
-    public function complete(InvestorOnboardingSession $session, array $payload): array
+    public function markNidaVerified(
+        InvestorOnboardingSession $session,
+        array $prefillData,
+        string $nidaNumber
+    ): InvestorOnboardingSession {
+        $existingPrefill = $session->prefill_data ?? [];
+
+        $session->update([
+            'nida_number' => $nidaNumber,
+            'nida_verified_at' => now(),
+            'prefill_data' => array_merge($existingPrefill, $prefillData),
+            'current_step' => 'nida_verified',
+        ]);
+
+        return $session->fresh();
+    }
+
+    public function complete(InvestorOnboardingSession $session, array $data): array
     {
-        return DB::transaction(function () use ($session, $payload) {
-            $hasPhoneVerified = ! is_null($session->phone_verified_at);
-            $hasNidaVerified = ! is_null($session->nida_verified_at);
+        if (! $session->phone_verified_at && ! $session->nida_verified_at) {
+            throw ValidationException::withMessages([
+                'verification' => ['Either phone OTP verification or NIDA verification is required before registration can be completed.'],
+            ]);
+        }
 
-            if (! $hasPhoneVerified && ! $hasNidaVerified) {
-                throw ValidationException::withMessages([
-                    'verification' => ['You must verify phone OTP or NIDA before completing registration.'],
-                ]);
+        return DB::transaction(function () use ($session, $data) {
+            $investorCategory = $this->resolveInvestorCategory($data['investor_type']);
+
+            $investor = Investor::create([
+                'uuid' => (string) Str::uuid(),
+                'investor_number' => $this->generateInvestorNumber(),
+                'investor_type' => $data['investor_type'],
+                'investor_category_id' => $investorCategory?->id,
+                'first_name' => $data['first_name'] ?? null,
+                'middle_name' => $data['middle_name'] ?? null,
+                'last_name' => $data['last_name'] ?? null,
+                'full_name' => $data['full_name'],
+                'company_name' => $data['company_name'] ?? null,
+                'date_of_birth' => $data['date_of_birth'] ?? null,
+                'gender' => $data['gender'] ?? null,
+                'nationality' => $data['nationality'] ?? null,
+                'national_id_number' => $data['national_id_number'] ?? $session->nida_number,
+                'tax_identification_number' => $data['tax_identification_number'] ?? null,
+                'onboarding_status' => 'draft',
+                'kyc_status' => 'pending',
+                'investor_status' => 'inactive',
+                'risk_profile' => $data['risk_profile'] ?? null,
+                'occupation' => $data['occupation'] ?? null,
+                'employer_name' => $data['employer_name'] ?? null,
+                'source_of_funds' => $data['source_of_funds'] ?? null,
+                'notes' => $data['notes'] ?? null,
+            ]);
+
+            $investor->contact()->create([
+                'email' => $data['email'],
+                'phone_primary' => $data['phone_primary'],
+                'phone_secondary' => $data['phone_secondary'] ?? null,
+                'alternate_contact_name' => $data['alternate_contact_name'] ?? null,
+                'alternate_contact_phone' => $data['alternate_contact_phone'] ?? null,
+                'preferred_contact_method' => $data['preferred_contact_method'] ?? null,
+            ]);
+
+            foreach ($data['addresses'] as $address) {
+                $investor->addresses()->create($address);
             }
 
-            $validatedData = [
-                'investor_type' => $session->investor_type,
-                'full_name' => $payload['full_name'],
-                'first_name' => $payload['first_name'] ?? null,
-                'middle_name' => $payload['middle_name'] ?? null,
-                'last_name' => $payload['last_name'] ?? null,
-                'company_name' => $payload['company_name'] ?? null,
-                'date_of_birth' => $payload['date_of_birth'] ?? null,
-                'gender' => $payload['gender'] ?? null,
-                'nationality' => $payload['nationality'] ?? null,
-                'national_id_number' => $payload['national_id_number'] ?? ($session->nida_number ?? null),
-                'tax_identification_number' => $payload['tax_identification_number'] ?? null,
-                'risk_profile' => $payload['risk_profile'] ?? null,
-                'occupation' => $payload['occupation'] ?? null,
-                'employer_name' => $payload['employer_name'] ?? null,
-                'source_of_funds' => $payload['source_of_funds'] ?? null,
-                'notes' => $payload['notes'] ?? null,
-                'email' => $payload['email'],
-                'phone_primary' => $payload['phone_primary'],
-                'phone_secondary' => $payload['phone_secondary'] ?? null,
-                'alternate_contact_name' => $payload['alternate_contact_name'] ?? null,
-                'alternate_contact_phone' => $payload['alternate_contact_phone'] ?? null,
-                'preferred_contact_method' => $payload['preferred_contact_method'] ?? null,
-                'addresses' => $payload['addresses'],
-                'nominees' => $payload['nominees'] ?? [],
-            ];
+            foreach (($data['nominees'] ?? []) as $nominee) {
+                $investor->nominees()->create($nominee);
+            }
 
-            $this->validator->validate($validatedData);
+            $investor->kycProfile()->create([
+                'kyc_reference' => $this->generateKycReference(),
+                'kyc_tier' => 'tier_0',
+                'document_status' => 'incomplete',
+                'identity_verification_status' => $session->nida_verified_at ? 'verified' : 'pending',
+                'address_verification_status' => 'pending',
+                'tax_verification_status' => 'pending',
+            ]);
 
-            $investor = $this->createInvestorAction->execute(
-                new CreateInvestorData(
-                    investorType: $validatedData['investor_type'],
-                    fullName: $validatedData['full_name'],
-                    firstName: $validatedData['first_name'],
-                    middleName: $validatedData['middle_name'],
-                    lastName: $validatedData['last_name'],
-                    companyName: $validatedData['company_name'],
-                    dateOfBirth: $validatedData['date_of_birth'],
-                    gender: $validatedData['gender'],
-                    nationality: $validatedData['nationality'],
-                    nationalIdNumber: $validatedData['national_id_number'],
-                    taxIdentificationNumber: $validatedData['tax_identification_number'],
-                    riskProfile: $validatedData['risk_profile'],
-                    occupation: $validatedData['occupation'],
-                    employerName: $validatedData['employer_name'],
-                    sourceOfFunds: $validatedData['source_of_funds'],
-                    notes: $validatedData['notes'],
-                    email: $validatedData['email'],
-                    phonePrimary: $validatedData['phone_primary'],
-                    phoneSecondary: $validatedData['phone_secondary'],
-                    alternateContactName: $validatedData['alternate_contact_name'],
-                    alternateContactPhone: $validatedData['alternate_contact_phone'],
-                    preferredContactMethod: $validatedData['preferred_contact_method'],
-                    addresses: array_map(
-                        fn (array $address) => new InvestorAddressData(
-                            addressType: $address['address_type'],
-                            country: $address['country'],
-                            region: $address['region'] ?? null,
-                            city: $address['city'] ?? null,
-                            district: $address['district'] ?? null,
-                            ward: $address['ward'] ?? null,
-                            street: $address['street'] ?? null,
-                            postalAddress: $address['postal_address'] ?? null,
-                            postalCode: $address['postal_code'] ?? null,
-                            isPrimary: (bool) $address['is_primary'],
-                        ),
-                        $validatedData['addresses']
-                    ),
-                    nominees: array_map(
-                        fn (array $nominee) => new InvestorNomineeData(
-                            fullName: $nominee['full_name'],
-                            relationship: $nominee['relationship'],
-                            dateOfBirth: $nominee['date_of_birth'] ?? null,
-                            phone: $nominee['phone'] ?? null,
-                            email: $nominee['email'] ?? null,
-                            nationalIdNumber: $nominee['national_id_number'] ?? null,
-                            allocationPercentage: (float) $nominee['allocation_percentage'],
-                            isMinor: (bool) $nominee['is_minor'],
-                            guardianName: $nominee['guardian_name'] ?? null,
-                            guardianPhone: $nominee['guardian_phone'] ?? null,
-                            address: $nominee['address'] ?? null,
-                        ),
-                        $validatedData['nominees']
-                    ),
-                    createdBy: null,
-                    updatedBy: null,
-                )
-            );
-
-            $user = $this->accountProvisioningService->createInvestorUser(
+            $user = $this->accountProvisioningService->createUserForInvestor(
                 investor: $investor,
-                email: $validatedData['email'],
-                phone: $validatedData['phone_primary'],
-                password: $payload['password'],
+                name: $data['full_name'],
+                email: $data['email'],
+                phone: $data['phone_primary'],
+                password: $data['password'],
             );
-
-            // Seed some initial KYC signals into the profile
-            if ($investor->kycProfile) {
-                $investor->kycProfile->update([
-                    'identity_verification_status' => $hasNidaVerified ? 'verified' : 'pending',
-                ]);
-            }
 
             $session->update([
                 'status' => 'completed',
                 'current_step' => 'completed',
-                'payload_snapshot' => array_merge($session->payload_snapshot ?? [], [
+                'payload_snapshot' => $data,
+                'metadata' => array_merge($session->metadata ?? [], [
                     'investor_id' => $investor->id,
                     'user_id' => $user->id,
                 ]),
             ]);
 
+            $token = $user->createToken('investor-portal')->plainTextToken;
+
             return [
                 'investor' => $investor->fresh(['contact', 'addresses', 'nominees', 'kycProfile']),
                 'user' => $user,
+                'token' => $token,
             ];
         });
+    }
+
+    protected function resolveInvestorCategory(string $investorType): ?InvestorCategory
+    {
+        $categoryCode = match ($investorType) {
+            'individual' => 'individual',
+            'corporate' => 'corporate',
+            default => 'individual',
+        };
+
+        return InvestorCategory::query()
+            ->where('code', $categoryCode)
+            ->where('is_active', true)
+            ->first();
+    }
+
+    protected function generateInvestorNumber(): string
+    {
+        $nextId = (Investor::max('id') ?? 0) + 1;
+        return 'INV-' . str_pad((string) $nextId, 6, '0', STR_PAD_LEFT);
+    }
+
+    protected function generateKycReference(): string
+    {
+        $nextId = (Investor::count() ?? 0) + 1;
+        return 'KYC-' . str_pad((string) $nextId, 6, '0', STR_PAD_LEFT);
     }
 }
