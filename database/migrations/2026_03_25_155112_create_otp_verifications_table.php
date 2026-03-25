@@ -8,34 +8,29 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('otp_verifications', function (Blueprint $table) {
-            $table->id();
-            $table->uuid('uuid')->unique();
+        if (! Schema::hasTable('kyc_tier_rules')) {
+            Schema::create('kyc_tier_rules', function (Blueprint $table) {
+                $table->id();
+                $table->uuid('uuid')->unique();
 
-            $table->string('phone_number', 30);
-            $table->string('purpose', 50)->default('investor_onboarding');
-            $table->string('code', 10);
+                $table->foreignId('kyc_tier_id')->constrained('kyc_tiers')->cascadeOnDelete();
 
-            $table->string('provider', 50)->default('beem');
-            $table->string('provider_reference')->nullable();
+                $table->boolean('requires_phone_verified')->default(false);
+                $table->boolean('requires_nida_verified')->default(false);
+                $table->boolean('requires_identity_verified')->default(false);
+                $table->boolean('requires_profile_completed')->default(false);
+                $table->boolean('requires_documents_completed')->default(false);
+                $table->boolean('requires_admin_approval')->default(false);
 
-            $table->string('status', 50)->default('pending');
-            $table->unsignedInteger('attempts')->default(0);
+                $table->boolean('is_active')->default(true);
 
-            $table->timestamp('expires_at');
-            $table->timestamp('verified_at')->nullable();
-
-            $table->json('metadata')->nullable();
-
-            $table->timestamps();
-
-            $table->index(['phone_number', 'purpose']);
-            $table->index('status');
-        });
+                $table->timestamps();
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('otp_verifications');
+        Schema::dropIfExists('kyc_tier_rules');
     }
 };
