@@ -24,7 +24,7 @@ class PhoneOtpService
             'expires_at' => now()->addMinutes(10),
             'metadata' => [
                 'mock_mode' => true,
-                'note' => 'Replace with real Beem Africa API integration.',
+                'note' => 'Replace with real Beem Africa API integration later.',
             ],
         ]);
     }
