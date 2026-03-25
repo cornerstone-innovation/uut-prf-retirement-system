@@ -28,4 +28,14 @@ class IdentityProviderLog extends Model
             'response_payload' => 'array',
         ];
     }
+
+    public function investor()
+    {
+        return $this->belongsTo(Investor::class);
+    }
+
+    public function onboardingSession()
+    {
+        return $this->belongsTo(InvestorOnboardingSession::class, 'onboarding_session_id');
+    }
 }
