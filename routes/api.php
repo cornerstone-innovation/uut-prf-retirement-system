@@ -21,6 +21,9 @@ use App\Http\Controllers\Api\CutoffTimeRuleController;
 use App\Http\Controllers\Api\BusinessHolidayController;
 use App\Http\Controllers\Api\FundController;
 use App\Http\Controllers\Api\PlanCategoryController;
+use App\Http\Controllers\Api\Public\InvestorOnboardingController;
+use App\Http\Controllers\Api\Public\InvestorOtpController;
+use App\Http\Controllers\Api\Public\InvestorNidaVerificationController;
 
 
 
@@ -121,4 +124,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
         [DirectorVerificationController::class, 'verifyIdentity']
     );
 
+});
+
+
+Route::prefix('investor-onboarding')->group(function () {
+    Route::post('/start', [InvestorOnboardingController::class, 'start']);
+    Route::post('/verify-nida', [InvestorNidaVerificationController::class, 'verify']);
+    Route::post('/send-otp', [InvestorOtpController::class, 'send']);
+    Route::post('/verify-otp', [InvestorOtpController::class, 'verify']);
+    Route::post('/complete-registration', [InvestorOnboardingController::class, 'complete']);
 });

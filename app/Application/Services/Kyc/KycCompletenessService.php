@@ -3,6 +3,7 @@
 namespace App\Application\Services\Kyc;
 
 use App\Models\Investor;
+use App\Models\KycTier;
 use App\Models\IdentityVerification;
 use Illuminate\Support\Facades\DB;
 
@@ -98,9 +99,14 @@ class KycCompletenessService
             documentsCompleted: $documentsCompleted
         );
 
-        $canViewProducts = in_array($kycTier, ['tier_1', 'tier_2', 'tier_3'], true);
-        $canPurchase = in_array($kycTier, ['tier_2', 'tier_3'], true);
-        $canRedeem = $kycTier === 'tier_3';
+            $tierConfig = KycTier::query()
+            ->where('code', $kycTier)
+            ->where('is_active', true)
+            ->first();
+
+    $canViewProducts = (bool) ($tierConfig?->can_view_products ?? false);
+    $canPurchase = (bool) ($tierConfig?->can_purchase ?? false);
+    $canRedeem = (bool) ($tierConfig?->can_redeem ?? false);
 
         return [
             'investor_id' => $investor->id,
