@@ -17,7 +17,6 @@ class YesIdVerificationService
             ]);
         }
 
-        // Mock response for now. Replace with real YesID integration later.
         $response = [
             'success' => true,
             'provider_reference' => 'YESID-' . Str::upper(Str::random(12)),
