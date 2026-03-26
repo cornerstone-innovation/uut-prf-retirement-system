@@ -57,95 +57,97 @@ class InvestorOnboardingService
         return $session->fresh();
     }
 
-    public function complete(InvestorOnboardingSession $session, array $data): array
-    {
-        if (! $session->phone_verified_at && ! $session->nida_verified_at) {
-            throw ValidationException::withMessages([
-                'verification' => ['Either phone OTP verification or NIDA verification is required before registration can be completed.'],
-            ]);
+  public function complete(InvestorOnboardingSession $session, array $data): array
+{
+    if (! $session->phone_verified_at && ! $session->nida_verified_at) {
+        throw ValidationException::withMessages([
+            'verification' => ['Either phone OTP verification or NIDA verification is required before registration can be completed.'],
+        ]);
+    }
+
+    return DB::transaction(function () use ($session, $data) {
+        $investorCategory = $this->resolveInvestorCategory($data['investor_type']);
+
+        $investor = Investor::create([
+            'uuid' => (string) Str::uuid(),
+            'investor_number' => $this->generateInvestorNumber(),
+            'investor_type' => $data['investor_type'],
+            'investor_category_id' => $investorCategory?->id,
+            'first_name' => $data['first_name'] ?? null,
+            'middle_name' => $data['middle_name'] ?? null,
+            'last_name' => $data['last_name'] ?? null,
+            'full_name' => $data['full_name'],
+            'company_name' => $data['company_name'] ?? null,
+            'date_of_birth' => $data['date_of_birth'] ?? null,
+            'gender' => $data['gender'] ?? null,
+            'nationality' => $data['nationality'] ?? null,
+            'national_id_number' => $data['national_id_number'] ?? $session->nida_number,
+            'tax_identification_number' => $data['tax_identification_number'] ?? null,
+            'onboarding_status' => 'draft',
+            'kyc_status' => 'pending',
+            'investor_status' => 'inactive',
+            'risk_profile' => $data['risk_profile'] ?? null,
+            'occupation' => $data['occupation'] ?? null,
+            'employer_name' => $data['employer_name'] ?? null,
+            'source_of_funds' => $data['source_of_funds'] ?? null,
+            'notes' => $data['notes'] ?? null,
+        ]);
+
+        $investor->contact()->create([
+            'email' => $data['email'],
+            'phone_primary' => $data['phone_primary'],
+            'phone_secondary' => $data['phone_secondary'] ?? null,
+            'alternate_contact_name' => $data['alternate_contact_name'] ?? null,
+            'alternate_contact_phone' => $data['alternate_contact_phone'] ?? null,
+            'preferred_contact_method' => $data['preferred_contact_method'] ?? null,
+        ]);
+
+        foreach ($data['addresses'] as $address) {
+            $investor->addresses()->create($address);
         }
 
-        return DB::transaction(function () use ($session, $data) {
-            $investorCategory = $this->resolveInvestorCategory($data['investor_type']);
-
-            $investor = Investor::create([
-                'uuid' => (string) Str::uuid(),
-                'investor_number' => $this->generateInvestorNumber(),
-                'investor_type' => $data['investor_type'],
-                'investor_category_id' => $investorCategory?->id,
-                'first_name' => $data['first_name'] ?? null,
-                'middle_name' => $data['middle_name'] ?? null,
-                'last_name' => $data['last_name'] ?? null,
-                'full_name' => $data['full_name'],
-                'company_name' => $data['company_name'] ?? null,
-                'date_of_birth' => $data['date_of_birth'] ?? null,
-                'gender' => $data['gender'] ?? null,
-                'nationality' => $data['nationality'] ?? null,
-                'national_id_number' => $data['national_id_number'] ?? $session->nida_number,
-                'tax_identification_number' => $data['tax_identification_number'] ?? null,
-                'onboarding_status' => 'draft',
-                'kyc_status' => 'pending',
-                'investor_status' => 'inactive',
-                'risk_profile' => $data['risk_profile'] ?? null,
-                'occupation' => $data['occupation'] ?? null,
-                'employer_name' => $data['employer_name'] ?? null,
-                'source_of_funds' => $data['source_of_funds'] ?? null,
-                'notes' => $data['notes'] ?? null,
-            ]);
-
-            $investor->contact()->create([
-                'email' => $data['email'],
-                'phone_primary' => $data['phone_primary'],
-                'phone_secondary' => $data['phone_secondary'] ?? null,
-                'alternate_contact_name' => $data['alternate_contact_name'] ?? null,
-                'alternate_contact_phone' => $data['alternate_contact_phone'] ?? null,
-                'preferred_contact_method' => $data['preferred_contact_method'] ?? null,
-            ]);
-
-            foreach ($data['addresses'] as $address) {
-                $investor->addresses()->create($address);
-            }
-
-            foreach (($data['nominees'] ?? []) as $nominee) {
+        if (! empty($data['nominees']) && is_array($data['nominees'])) {
+            foreach ($data['nominees'] as $nominee) {
                 $investor->nominees()->create($nominee);
             }
+        }
 
-            $investor->kycProfile()->create([
-                'kyc_reference' => $this->generateKycReference(),
-                'kyc_tier' => 'tier_0',
-                'document_status' => 'incomplete',
-                'identity_verification_status' => $session->nida_verified_at ? 'verified' : 'pending',
-                'address_verification_status' => 'pending',
-                'tax_verification_status' => 'pending',
-            ]);
+        $investor->kycProfile()->create([
+            'kyc_reference' => $this->generateKycReference(),
+            'kyc_tier' => 'tier_0',
+            'document_status' => 'incomplete',
+            'identity_verification_status' => $session->nida_verified_at ? 'verified' : 'pending',
+            'address_verification_status' => 'pending',
+            'tax_verification_status' => 'pending',
+        ]);
 
-            $user = $this->accountProvisioningService->createUserForInvestor(
-                investor: $investor,
-                name: $data['full_name'],
-                email: $data['email'],
-                phone: $data['phone_primary'],
-                password: $data['password'],
-            );
+        $user = $this->accountProvisioningService->createUserForInvestor(
+            investor: $investor,
+            name: $data['full_name'],
+            email: $data['email'],
+            phone: $data['phone_primary'],
+            password: $data['password'],
+        );
 
-            $session->update([
-                'status' => 'completed',
-                'current_step' => 'completed',
-                'payload_snapshot' => $data,
-                'metadata' => array_merge($session->metadata ?? [], [
-                    'investor_id' => $investor->id,
-                    'user_id' => $user->id,
-                ]),
-            ]);
+        $session->update([
+            'status' => 'completed',
+            'current_step' => 'completed',
+            'payload_snapshot' => $data,
+            'metadata' => array_merge($session->metadata ?? [], [
+                'investor_id' => $investor->id,
+                'user_id' => $user->id,
+            ]),
+        ]);
 
-            $token = $user->createToken('investor-portal')->plainTextToken;
+        $token = $user->createToken('investor-portal')->plainTextToken;
 
-            return [
-                'investor' => $investor->fresh(['contact', 'addresses', 'nominees', 'kycProfile']),
-                'user' => $user,
-                'token' => $token,
-            ];
-        });
-    }
+        return [
+            'investor' => $investor->fresh(['contact', 'addresses', 'nominees', 'kycProfile']),
+            'user' => $user,
+            'token' => $token,
+        ];
+    });
+}
 
     protected function resolveInvestorCategory(string $investorType): ?InvestorCategory
     {
