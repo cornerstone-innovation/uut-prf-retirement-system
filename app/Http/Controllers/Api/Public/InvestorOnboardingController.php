@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\Public;
 
+use App\Models\InvestorOnboardingSession;
 use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Onboarding\StartInvestorOnboardingRequest;
@@ -14,12 +15,16 @@ class InvestorOnboardingController extends Controller
         StartInvestorOnboardingRequest $request,
         InvestorOnboardingService $onboardingService
     ): JsonResponse {
-        $session = $onboardingService->start($request->validated());
+        $session = $onboardingService->start(
+            investorType: $request->input('investor_type'),
+            phoneNumber: $request->input('phone_number'),
+            nidaNumber: $request->input('nida_number')
+        );
 
         return response()->json([
             'message' => 'Investor onboarding started successfully.',
             'data' => [
-                'session_id' => $session->uuid,
+                'session_uuid' => $session->uuid,
                 'investor_type' => $session->investor_type,
                 'phone_number' => $session->phone_number,
                 'nida_number' => $session->nida_number,
@@ -34,18 +39,16 @@ class InvestorOnboardingController extends Controller
         CompleteInvestorRegistrationRequest $request,
         InvestorOnboardingService $onboardingService
     ): JsonResponse {
-        $session = $onboardingService->findActiveSessionByUuid(
-            $request->string('session_id')->toString()
-        );
+        $session = InvestorOnboardingSession::query()
+            ->where('uuid', $request->input('session_uuid'))
+            ->firstOrFail();
 
         $result = $onboardingService->complete($session, $request->validated());
-
-        $token = $result['user']->createToken('investor-portal')->plainTextToken;
 
         return response()->json([
             'message' => 'Investor registration completed successfully.',
             'data' => [
-                'token' => $token,
+                'token' => $result['token'],
                 'user' => [
                     'id' => $result['user']->id,
                     'name' => $result['user']->name,
