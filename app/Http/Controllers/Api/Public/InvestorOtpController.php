@@ -25,15 +25,20 @@ class InvestorOtpController extends Controller
             purpose: 'investor_onboarding'
         );
 
+        $payload = [
+            'session_uuid' => $session->uuid,
+            'otp_uuid' => $otp->uuid,
+            'phone_number' => $otp->phone_number,
+            'expires_at' => optional($otp->expires_at)?->toDateTimeString(),
+        ];
+
+        if (config('otp.driver') !== 'beem') {
+            $payload['mock_code'] = $otp->code;
+        }
+
         return response()->json([
             'message' => 'OTP sent successfully.',
-            'data' => [
-                'session_uuid' => $session->uuid,
-                'otp_uuid' => $otp->uuid,
-                'phone_number' => $otp->phone_number,
-                'expires_at' => optional($otp->expires_at)?->toDateTimeString(),
-                'mock_code' => $otp->code,
-            ],
+            'data' => $payload,
         ]);
     }
 

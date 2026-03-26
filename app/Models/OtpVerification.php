@@ -16,10 +16,12 @@ class OtpVerification extends Model
         'code',
         'provider',
         'provider_reference',
+        'external_pin_id',
         'status',
         'attempts',
         'expires_at',
         'verified_at',
+        'verified_externally',
         'metadata',
     ];
 
@@ -28,6 +30,7 @@ class OtpVerification extends Model
         return [
             'expires_at' => 'datetime',
             'verified_at' => 'datetime',
+            'verified_externally' => 'boolean',
             'metadata' => 'array',
         ];
     }
