@@ -93,7 +93,7 @@ class PhoneOtpService
         return $otp->fresh();
     }
 
-    protected function sendViaBeem(string $phoneNumber, string $purpose): OtpVerification
+ protected function sendViaBeem(string $phoneNumber, string $purpose): OtpVerification
     {
         $baseUrl = rtrim(config('otp.beem.base_url'), '/');
         $apiKey = config('otp.beem.api_key');
@@ -102,7 +102,7 @@ class PhoneOtpService
 
         if (! $apiKey || ! $secretKey || ! $appId) {
             throw ValidationException::withMessages([
-                'otp' => ['Beem OTP credentials are not configured.'],
+                'otp' => ['Beem OTP credentials are not configured correctly. Check API key, secret, and app id.'],
             ]);
         }
 
@@ -113,20 +113,25 @@ class PhoneOtpService
                 'msisdn' => $phoneNumber,
             ]);
 
+        $json = $response->json();
+
         if (! $response->successful()) {
             throw ValidationException::withMessages([
-                'otp' => ['Failed to send OTP via Beem.'],
+                'otp' => [
+                    'Beem HTTP error: ' . $response->status() . ' | Response: ' . json_encode($json),
+                ],
             ]);
         }
 
-        $json = $response->json();
         $pinId = data_get($json, 'data.pinId');
         $messageCode = (int) data_get($json, 'data.message.code', 0);
         $messageText = (string) data_get($json, 'data.message.message', 'Unknown response');
 
         if (! $pinId || $messageCode !== 100) {
             throw ValidationException::withMessages([
-                'otp' => ["Beem OTP request failed: {$messageText}"],
+                'otp' => [
+                    "Beem OTP request failed. Code: {$messageCode}. Message: {$messageText}. Full response: " . json_encode($json),
+                ],
             ]);
         }
 
