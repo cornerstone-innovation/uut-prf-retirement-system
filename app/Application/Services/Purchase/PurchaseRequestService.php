@@ -12,11 +12,11 @@ use App\Application\Services\Plan\PlanEligibilityService;
 
 class PurchaseRequestService
 {
-  public function __construct(
-            private readonly PlanEligibilityService $planEligibilityService,
-            private readonly \App\Application\Services\Nav\CutoffTimeService $cutoffTimeService
-        ) {
-        }
+    public function __construct(
+        private readonly PlanEligibilityService $planEligibilityService,
+        private readonly \App\Application\Services\Nav\CutoffTimeService $cutoffTimeService
+    ) {
+    }
 
     public function create(
         Investor $investor,
@@ -53,7 +53,8 @@ class PurchaseRequestService
             $isSip,
             $notes,
             $createdBy,
-            $eligibility
+            $eligibility,
+            $pricing
         ) {
             return PurchaseRequest::create([
                 'uuid' => (string) Str::uuid(),
@@ -70,14 +71,14 @@ class PurchaseRequestService
                 'metadata' => [
                     'plan_code' => $plan->code,
                     'plan_name' => $plan->name,
-                    'cutoff_rule_id' => $pricing['cutoff_rule_id'],
-                    'cutoff_time' => $pricing['cutoff_time'],
-                    'timezone' => $pricing['timezone'],
+                    'cutoff_rule_id' => $pricing['cutoff_rule_id'] ?? null,
+                    'cutoff_time' => $pricing['cutoff_time'] ?? null,
+                    'timezone' => $pricing['timezone'] ?? null,
                 ],
                 'created_by' => $createdBy,
                 'updated_by' => $createdBy,
                 'submitted_at' => now(),
-                'pricing_date' => $pricing['pricing_date'],
+                'pricing_date' => $pricing['pricing_date'] ?? null,
             ]);
         });
     }
