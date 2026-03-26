@@ -8,12 +8,16 @@ use App\Models\InvestorOnboardingSession;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use App\Application\Services\Kyc\KycCompletenessService;
 use App\Application\Services\Auth\InvestorAccountProvisioningService;
+use App\Application\Services\Verification\PublicInvestorIdentityVerificationService;
 
 class InvestorOnboardingService
 {
     public function __construct(
-        private readonly InvestorAccountProvisioningService $accountProvisioningService
+        private readonly InvestorAccountProvisioningService $accountProvisioningService,
+        private readonly KycCompletenessService $kycCompletenessService,
+        private readonly PublicInvestorIdentityVerificationService $publicInvestorIdentityVerificationService
     ) {
     }
 
@@ -57,7 +61,7 @@ class InvestorOnboardingService
         return $session->fresh();
     }
 
-  public function complete(InvestorOnboardingSession $session, array $data): array
+public function complete(InvestorOnboardingSession $session, array $data): array
 {
     if (! $session->phone_verified_at && ! $session->nida_verified_at) {
         throw ValidationException::withMessages([
@@ -121,6 +125,12 @@ class InvestorOnboardingService
             'tax_verification_status' => 'pending',
         ]);
 
+        $this->publicInvestorIdentityVerificationService->createFromOnboardingSession(
+            investor: $investor,
+            session: $session,
+            providerReference: null
+        );
+
         $user = $this->accountProvisioningService->createUserForInvestor(
             investor: $investor,
             name: $data['full_name'],
@@ -139,10 +149,14 @@ class InvestorOnboardingService
             ]),
         ]);
 
+        $this->kycCompletenessService->syncStatuses($investor);
+
+        $investor = $investor->fresh(['contact', 'addresses', 'nominees', 'kycProfile']);
+
         $token = $user->createToken('investor-portal')->plainTextToken;
 
         return [
-            'investor' => $investor->fresh(['contact', 'addresses', 'nominees', 'kycProfile']),
+            'investor' => $investor,
             'user' => $user,
             'token' => $token,
         ];
