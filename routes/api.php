@@ -25,7 +25,7 @@ use App\Http\Controllers\Api\Public\InvestorOnboardingController;
 use App\Http\Controllers\Api\Public\InvestorOtpController;
 use App\Http\Controllers\Api\Public\InvestorNidaVerificationController;
 use App\Http\Controllers\Api\UserManagementController;
-
+use App\Http\Controllers\Api\AccessControlController;
 
 
 
@@ -94,6 +94,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/users', [UserManagementController::class, 'store']);
     Route::patch('/users/{user}', [UserManagementController::class, 'update']);
     Route::patch('/users/{user}/status', [UserManagementController::class, 'updateStatus']);
+    Route::get('/roles', [AccessControlController::class, 'roles']);
+    Route::get('/permissions', [AccessControlController::class, 'permissions']);        
   
 
 
