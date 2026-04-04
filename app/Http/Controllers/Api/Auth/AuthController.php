@@ -15,6 +15,8 @@ use Illuminate\Support\Str;
 use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\ResetPasswordRequest;
 
+use Illuminate\Validation\ValidationException;
+
 class AuthController extends Controller
 {
     public function login(Request $request): JsonResponse

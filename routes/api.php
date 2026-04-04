@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\PlanCategoryController;
 use App\Http\Controllers\Api\Public\InvestorOnboardingController;
 use App\Http\Controllers\Api\Public\InvestorOtpController;
 use App\Http\Controllers\Api\Public\InvestorNidaVerificationController;
+use App\Http\Controllers\Api\UserManagementController;
 
 
 
@@ -86,7 +87,13 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/plans/{plan}/purchase-preview', [PlanController::class, 'purchasePreview']);
     Route::get('/funds', [FundController::class, 'index']);
     Route::get('/plan-categories', [PlanCategoryController::class, 'index']);
-    
+  
+
+    Route::get('/users', [UserManagementController::class, 'index']);
+    Route::get('/users/{user}', [UserManagementController::class, 'show']);
+    Route::post('/users', [UserManagementController::class, 'store']);
+    Route::patch('/users/{user}', [UserManagementController::class, 'update']);
+    Route::patch('/users/{user}/status', [UserManagementController::class, 'updateStatus']);
   
 
 
