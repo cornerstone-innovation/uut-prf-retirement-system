@@ -43,8 +43,7 @@ class UserManagementController extends Controller
         ]);
     }
 
-   
-    public function store(StoreUserRequest $request): JsonResponse
+  public function store(StoreUserRequest $request): JsonResponse
 {
     try {
         $this->authorizeAction();
@@ -88,7 +87,6 @@ class UserManagementController extends Controller
         ], 500);
     }
 }
-
     public function update(UpdateUserRequest $request, User $user): JsonResponse
     {
         $this->authorizeAction();
