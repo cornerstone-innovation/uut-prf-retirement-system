@@ -45,38 +45,47 @@ class UserManagementController extends Controller
 
     public function store(StoreUserRequest $request): JsonResponse
     {
-        $this->authorizeAction();
+        try {
+            $this->authorizeAction();
 
-        $validated = $request->validated();
+            $validated = $request->validated();
 
-        $roles = $validated['roles'] ?? [];
-        $permissions = $validated['permissions'] ?? [];
+            $roles = $validated['roles'] ?? [];
+            $permissions = $validated['permissions'] ?? [];
 
-        $this->ensureRolesExist($roles);
-        $this->ensurePermissionsExist($permissions);
+            $this->ensureRolesExist($roles);
+            $this->ensurePermissionsExist($permissions);
 
-        $user = User::create([
-            'uuid' => (string) Str::uuid(),
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'phone' => $validated['phone'] ?? null,
-            'password' => $validated['password'],
-            'is_active' => $validated['is_active'] ?? true,
-            'investor_id' => $validated['investor_id'] ?? null,
-        ]);
+            $user = User::create([
+                'uuid' => (string) Str::uuid(),
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'phone' => $validated['phone'] ?? null,
+                'password' => $validated['password'],
+                'is_active' => $validated['is_active'] ?? true,
+                'investor_id' => $validated['investor_id'] ?? null,
+            ]);
 
-        if (! empty($roles)) {
-            $user->syncRoles($roles);
+            if (! empty($roles)) {
+                $user->syncRoles($roles);
+            }
+
+            if (! empty($permissions)) {
+                $user->syncPermissions($permissions);
+            }
+
+            return response()->json([
+                'message' => 'User created successfully.',
+                'data' => new UserManagementResource($user->fresh('investor')),
+            ], 201);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Create user failed.',
+                'error' => $e->getMessage(),
+                'line' => $e->getLine(),
+                'file' => $e->getFile(),
+            ], 500);
         }
-
-        if (! empty($permissions)) {
-            $user->syncPermissions($permissions);
-        }
-
-        return response()->json([
-            'message' => 'User created successfully.',
-            'data' => new UserManagementResource($user->fresh('investor')),
-        ], 201);
     }
 
     public function update(UpdateUserRequest $request, User $user): JsonResponse
