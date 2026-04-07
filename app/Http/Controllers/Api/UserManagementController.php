@@ -45,74 +45,51 @@ class UserManagementController extends Controller
     }
 
 
-    public function store(Request $request): JsonResponse
+  public function store(Request $request): JsonResponse
 {
-    try {
-        $this->authorizeAction();
+    $this->authorizeAction();
 
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
-            'phone' => ['nullable', 'string', 'max:30'],
-            'password' => ['required', 'string', 'min:8'],
-            'is_active' => ['nullable', 'boolean'],
-            'investor_id' => ['nullable', 'exists:investors,id'],
-            'roles' => ['nullable', 'array'],
-            'roles.*' => ['string'],
-            'permissions' => ['nullable', 'array'],
-            'permissions.*' => ['string'],
-        ]);
+    $validated = $request->validate([
+        'name' => ['required', 'string', 'max:255'],
+        'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+        'phone' => ['nullable', 'string', 'max:30'],
+        'password' => ['required', 'string', 'min:8'],
+        'is_active' => ['nullable', 'boolean'],
+        'investor_id' => ['nullable', 'exists:investors,id'],
+        'roles' => ['nullable', 'array'],
+        'roles.*' => ['string'],
+        'permissions' => ['nullable', 'array'],
+        'permissions.*' => ['string'],
+    ]);
 
-        $roles = $validated['roles'] ?? [];
-        $permissions = $validated['permissions'] ?? [];
+    $roles = $validated['roles'] ?? [];
+    $permissions = $validated['permissions'] ?? [];
 
-        $this->ensureRolesExist($roles);
-        $this->ensurePermissionsExist($permissions);
+    $this->ensureRolesExist($roles);
+    $this->ensurePermissionsExist($permissions);
 
-        $user = User::create([
-            'uuid' => (string) Str::uuid(),
-            'name' => $validated['name'],
-            'email' => $validated['email'],
-            'phone' => $validated['phone'] ?? null,
-            'password' => $validated['password'],
-            'is_active' => $validated['is_active'] ?? true,
-            'investor_id' => $validated['investor_id'] ?? null,
-        ]);
+    $user = User::create([
+        'uuid' => (string) Str::uuid(),
+        'name' => $validated['name'],
+        'email' => $validated['email'],
+        'phone' => $validated['phone'] ?? null,
+        'password' => $validated['password'],
+        'is_active' => $validated['is_active'] ?? true,
+        'investor_id' => $validated['investor_id'] ?? null,
+    ]);
 
-        if (!empty($roles)) {
-            $user->syncRoles($roles);
-        }
-
-        if (!empty($permissions)) {
-            $user->syncPermissions($permissions);
-        }
-
-        $user->load('investor');
-
-        return response()->json([
-            'message' => 'User created successfully.',
-            'data' => [
-                'id' => $user->id,
-                'uuid' => $user->uuid,
-                'name' => $user->name,
-                'email' => $user->email,
-                'phone' => $user->phone,
-                'is_active' => (bool) $user->is_active,
-                'investor_id' => $user->investor_id,
-                'roles' => $user->getRoleNames()->values(),
-                'permissions' => $user->getDirectPermissions()->pluck('name')->values(),
-                'all_permissions' => $user->getAllPermissions()->pluck('name')->values(),
-            ],
-        ], 201);
-    } catch (\Throwable $e) {
-        return response()->json([
-            'message' => 'Create user failed.',
-            'error' => $e->getMessage(),
-            'line' => $e->getLine(),
-            'file' => $e->getFile(),
-            'trace_hint' => class_basename($e),
-        ], 500);
+    if (! empty($roles)) {
+        $user->syncRoles($roles);
     }
+
+    if (! empty($permissions)) {
+        $user->syncPermissions($permissions);
+    }
+
+    return response()->json([
+        'message' => 'User created successfully.',
+        'data' => new UserManagementResource($user->fresh('investor')),
+    ], 201);
 }
 
 

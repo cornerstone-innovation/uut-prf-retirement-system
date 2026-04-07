@@ -9,17 +9,27 @@ class UserManagementResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        $roles = method_exists($this->resource, 'getRoleNames')
-            ? $this->getRoleNames()->values()->all()
-            : [];
+        $roles = [];
+        $directPermissions = [];
+        $allPermissions = [];
 
-        $directPermissions = method_exists($this->resource, 'getDirectPermissions')
-            ? $this->getDirectPermissions()->pluck('name')->values()->all()
-            : [];
+        try {
+            $roles = $this->getRoleNames()->values()->all();
+        } catch (\Throwable $e) {
+            $roles = [];
+        }
 
-        $allPermissions = method_exists($this->resource, 'getAllPermissions')
-            ? $this->getAllPermissions()->pluck('name')->values()->all()
-            : [];
+        try {
+            $directPermissions = $this->getDirectPermissions()->pluck('name')->values()->all();
+        } catch (\Throwable $e) {
+            $directPermissions = [];
+        }
+
+        try {
+            $allPermissions = $this->getAllPermissions()->pluck('name')->values()->all();
+        } catch (\Throwable $e) {
+            $allPermissions = [];
+        }
 
         return [
             'id' => $this->id,
