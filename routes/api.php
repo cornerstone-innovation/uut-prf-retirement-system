@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\Public\InvestorOtpController;
 use App\Http\Controllers\Api\Public\InvestorNidaVerificationController;
 use App\Http\Controllers\Api\UserManagementController;
 use App\Http\Controllers\Api\AccessControlController;
+use App\Http\Controllers\Api\Public\ClickPesaWebhookController;
 
 
 
@@ -33,6 +34,13 @@ use App\Http\Controllers\Api\AccessControlController;
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+
+
+
+// Public webhook route
+Route::post('/webhooks/clickpesa', [ClickPesaWebhookController::class, 'handle']);
+
+
 
 Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
@@ -95,7 +103,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::patch('/users/{user}', [UserManagementController::class, 'update']);
     Route::patch('/users/{user}/status', [UserManagementController::class, 'updateStatus']);
     Route::get('/roles', [AccessControlController::class, 'roles']);
-    Route::get('/permissions', [AccessControlController::class, 'permissions']);        
+    Route::get('/permissions', [AccessControlController::class, 'permissions']);       
+    Route::post('/purchase-requests/{purchaseRequest}/reconfirm', [PurchaseRequestController::class, 'reconfirm']); 
   
 
 

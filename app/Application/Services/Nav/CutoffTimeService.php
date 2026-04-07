@@ -65,7 +65,9 @@ class CutoffTimeService
         $localSubmittedAt = $submittedAt->copy()->timezone($timezone);
 
         $submittedDate = Carbon::parse($localSubmittedAt->toDateString(), $timezone);
-        $businessSubmissionDate = $this->businessCalendarService->normalizeToBusinessDay($submittedDate)->toDateString();
+        $businessSubmissionDate = $this->businessCalendarService
+            ->normalizeToBusinessDay($submittedDate)
+            ->toDateString();
 
         $cutoffDateTime = Carbon::parse(
             $businessSubmissionDate . ' ' . $rule->cutoff_time,
@@ -76,7 +78,9 @@ class CutoffTimeService
             Carbon::parse($businessSubmissionDate, $timezone)
         );
 
-        if ($sameBusinessDay && $localSubmittedAt->lessThanOrEqualTo($cutoffDateTime)) {
+        $withinCutoff = $sameBusinessDay && $localSubmittedAt->lessThanOrEqualTo($cutoffDateTime);
+
+        if ($withinCutoff) {
             $pricingDate = $businessSubmissionDate;
         } else {
             $pricingDate = $this->businessCalendarService
@@ -90,6 +94,10 @@ class CutoffTimeService
             'cutoff_time' => $rule->cutoff_time,
             'timezone' => $timezone,
             'submitted_at_local' => $localSubmittedAt->toDateTimeString(),
+            'submitted_after_cutoff' => ! $withinCutoff,
+            'can_pay_now' => $withinCutoff,
+            'requires_reconfirmation' => ! $withinCutoff,
+            'business_submission_date' => $businessSubmissionDate,
         ];
     }
 }

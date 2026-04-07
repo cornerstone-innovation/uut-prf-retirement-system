@@ -44,6 +44,10 @@ class PurchaseRequestService
 
         $pricing = $this->cutoffTimeService->resolvePricingDate($plan, now());
 
+        $status = ($pricing['can_pay_now'] ?? false)
+            ? 'pending_payment'
+            : 'awaiting_next_nav_confirmation';
+
         return DB::transaction(function () use (
             $investor,
             $plan,
@@ -54,7 +58,8 @@ class PurchaseRequestService
             $notes,
             $createdBy,
             $eligibility,
-            $pricing
+            $pricing,
+            $status
         ) {
             return PurchaseRequest::create([
                 'uuid' => (string) Str::uuid(),
@@ -64,7 +69,7 @@ class PurchaseRequestService
                 'currency' => 'TZS',
                 'request_type' => $requestType,
                 'option' => $option,
-                'status' => 'pending_payment',
+                'status' => $status,
                 'kyc_tier_at_request' => $eligibility['kyc_tier'] ?? null,
                 'is_sip' => $isSip,
                 'notes' => $notes,
@@ -74,6 +79,9 @@ class PurchaseRequestService
                     'cutoff_rule_id' => $pricing['cutoff_rule_id'] ?? null,
                     'cutoff_time' => $pricing['cutoff_time'] ?? null,
                     'timezone' => $pricing['timezone'] ?? null,
+                    'submitted_at_local' => $pricing['submitted_at_local'] ?? null,
+                    'submitted_after_cutoff' => $pricing['submitted_after_cutoff'] ?? false,
+                    'requires_reconfirmation' => $pricing['requires_reconfirmation'] ?? false,
                 ],
                 'created_by' => $createdBy,
                 'updated_by' => $createdBy,

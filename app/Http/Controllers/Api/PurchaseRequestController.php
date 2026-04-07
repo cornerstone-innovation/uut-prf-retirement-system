@@ -14,6 +14,8 @@ use App\Application\Services\Purchase\PurchaseAllocationService;
 use App\Http\Resources\InvestmentTransactionResource;
 use App\Http\Resources\UnitLotResource;
 use App\Models\PurchaseRequest;
+use App\Application\Services\Purchase\PurchasePreviewService;
+use Illuminate\Validation\ValidationException;
 
 class PurchaseRequestController extends Controller
 {
@@ -86,6 +88,79 @@ class PurchaseRequestController extends Controller
             'message' => 'Purchase request created successfully.',
             'data' => new PurchaseRequestResource($purchaseRequest->load('plan')),
         ], 201);
+    }
+
+    public function reconfirm(
+        Request $request,
+        PurchaseRequest $purchaseRequest,
+        PurchasePreviewService $previewService,
+        AuditLogger $auditLogger
+    ): JsonResponse {
+        $investor = $request->user()?->investor;
+
+        if (! $investor || (int) $investor->id !== (int) $purchaseRequest->investor_id) {
+            return response()->json([
+                'message' => 'You are not allowed to reconfirm this purchase request.',
+            ], 403);
+        }
+
+        if ($purchaseRequest->status !== 'awaiting_next_nav_confirmation') {
+            throw ValidationException::withMessages([
+                'purchase_request' => ['Only purchase requests awaiting next NAV confirmation can be reconfirmed.'],
+            ]);
+        }
+
+        $purchaseRequest->loadMissing('plan.activeRule');
+
+        $preview = $previewService->preview(
+            investor: $investor,
+            plan: $purchaseRequest->plan,
+            amount: (float) $purchaseRequest->amount,
+            option: $purchaseRequest->option,
+            requestType: $purchaseRequest->request_type,
+            isSip: (bool) $purchaseRequest->is_sip,
+        );
+
+        if (! ($preview['can_pay_now'] ?? false)) {
+            throw ValidationException::withMessages([
+                'purchase_request' => ['This purchase request is still not ready for payment.'],
+            ]);
+        }
+
+        $purchaseRequest->update([
+            'status' => 'pending_payment',
+            'pricing_date' => $preview['pricing_date'],
+            'metadata' => array_merge($purchaseRequest->metadata ?? [], [
+                'reconfirmed_at' => now()->toDateTimeString(),
+                'cutoff_rule_id' => $preview['cutoff_rule_id'] ?? null,
+                'cutoff_time' => $preview['cutoff_time'] ?? null,
+                'timezone' => $preview['timezone'] ?? null,
+                'submitted_after_cutoff' => false,
+                'requires_reconfirmation' => false,
+            ]),
+            'updated_by' => $request->user()?->id,
+        ]);
+
+        $auditLogger->log(
+            userId: $request->user()?->id,
+            action: 'purchase_request.reconfirmed',
+            entityType: 'purchase_request',
+            entityId: $purchaseRequest->id,
+            entityReference: $purchaseRequest->uuid,
+            metadata: [
+                'status' => 'pending_payment',
+                'pricing_date' => $preview['pricing_date'],
+            ],
+            request: $request
+        );
+
+        return response()->json([
+            'message' => 'Purchase request reconfirmed successfully.',
+            'data' => [
+                'purchase_request' => new PurchaseRequestResource($purchaseRequest->fresh('plan')),
+                'preview' => $preview,
+            ],
+        ]);
     }
 
     public function allocate(

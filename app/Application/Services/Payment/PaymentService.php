@@ -12,7 +12,7 @@ use Illuminate\Validation\ValidationException;
 class PaymentService
 {
     public function __construct(
-        private readonly MockClickPesaPaymentService $provider
+        private readonly PaymentProviderInterface $provider
     ) {
     }
 
@@ -23,7 +23,7 @@ class PaymentService
     ): array {
         if ($purchaseRequest->status !== 'pending_payment') {
             throw ValidationException::withMessages([
-                'purchase_request' => ['Only purchase requests pending payment can be initialized for payment.'],
+                'purchase_request' => ['Only purchase requests that are ready for payment can be initialized for payment.'],
             ]);
         }
 
@@ -105,7 +105,7 @@ class PaymentService
                     'status' => 'success',
                     'completed_at' => now(),
                     'response_payload' => array_merge($latestAttempt->response_payload ?? [], [
-                        'mock_callback' => $payload,
+                        'webhook_payload' => $payload,
                     ]),
                 ]);
             }
@@ -127,7 +127,7 @@ class PaymentService
                     'status' => 'failed',
                     'completed_at' => now(),
                     'response_payload' => array_merge($latestAttempt->response_payload ?? [], [
-                        'mock_callback' => $payload,
+                        'webhook_payload' => $payload,
                     ]),
                 ]);
             }

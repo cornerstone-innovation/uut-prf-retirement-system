@@ -13,6 +13,7 @@ use App\Application\Services\Audit\AuditLogger;
 use App\Application\Services\Payment\PaymentService;
 use App\Models\PaymentCallback;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class PaymentController extends Controller
 {
@@ -28,6 +29,14 @@ class PaymentController extends Controller
             return response()->json([
                 'message' => 'You are not allowed to initialize payment for this purchase request.',
             ], 403);
+        }
+
+        if ($purchaseRequest->status === 'awaiting_next_nav_confirmation') {
+            throw ValidationException::withMessages([
+                'purchase_request' => [
+                    'This purchase request was submitted after cutoff. Please wait for the next active NAV and reconfirm before payment.'
+                ],
+            ]);
         }
 
         $result = $paymentService->initialize(

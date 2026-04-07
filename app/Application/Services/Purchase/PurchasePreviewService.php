@@ -47,14 +47,6 @@ class PurchasePreviewService
 
         $this->ensureOptionAllowed($rule, $option);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Pricing date
-        |--------------------------------------------------------------------------
-        | For now, use today's date.
-        | Later, this will be driven by cutoff-time rules.
-        |--------------------------------------------------------------------------
-        */
         $pricing = $this->cutoffTimeService->resolvePricingDate($plan, now());
         $pricingDate = $pricing['pricing_date'];
 
@@ -77,10 +69,7 @@ class PurchasePreviewService
             ]);
         }
 
-        // Entry load placeholder:
-        // can be expanded later into actual charge rules
         $entryLoadAmount = 0.00;
-
         $netInvestableAmount = round($amount - $entryLoadAmount, 2);
 
         if ($netInvestableAmount <= 0) {
@@ -90,6 +79,10 @@ class PurchasePreviewService
         }
 
         $estimatedUnits = round($netInvestableAmount / $nav, 6);
+
+        $canPayNow = (bool) ($pricing['can_pay_now'] ?? false);
+        $requiresReconfirmation = (bool) ($pricing['requires_reconfirmation'] ?? false);
+        $submittedAfterCutoff = (bool) ($pricing['submitted_after_cutoff'] ?? false);
 
         return [
             'investor_id' => $investor->id,
@@ -123,6 +116,13 @@ class PurchasePreviewService
             'cutoff_time' => $pricing['cutoff_time'],
             'timezone' => $pricing['timezone'],
             'submitted_at_local' => $pricing['submitted_at_local'],
+            'submitted_after_cutoff' => $submittedAfterCutoff,
+            'can_pay_now' => $canPayNow,
+            'requires_reconfirmation' => $requiresReconfirmation,
+            'next_action' => $canPayNow ? 'checkout' : 'wait_for_nav',
+            'investor_notice' => $canPayNow
+                ? 'You are within the active cutoff time and may proceed to payment.'
+                : 'Your request was submitted after the cutoff time. The applicable NAV may change in the next dealing cycle. Your request can be saved as pending confirmation until the next active NAV is available.',
         ];
     }
 
