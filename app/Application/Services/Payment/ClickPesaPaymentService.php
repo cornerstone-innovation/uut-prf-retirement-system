@@ -48,11 +48,8 @@ class ClickPesaPaymentService implements PaymentProviderInterface
         }
 
         $token = $this->getAuthorizationToken($config);
-
         $requestPayload = $this->buildCheckoutPayload($payment, $payload, $config);
 
-        // Checksum is documented for hosted checkout requests.
-        // Some accounts may enforce it; if secret is not configured, we skip it for now.
         if (! empty($config['api_secret'])) {
             $requestPayload['checksum'] = $this->checksumService->generate(
                 $config['api_secret'],
@@ -69,7 +66,9 @@ class ClickPesaPaymentService implements PaymentProviderInterface
 
         $response = Http::timeout((int) ($config['timeout_seconds'] ?? 30))
             ->acceptJson()
-            ->withToken($token)
+            ->withHeaders([
+                'Authorization' => $token,
+            ])
             ->post($config['checkout_link_url'], $requestPayload);
 
         Log::info('ClickPesa checkout response received.', [
