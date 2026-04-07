@@ -41,24 +41,42 @@ class ClickPesaPaymentService implements PaymentProviderInterface
             ];
         }
 
+        if (empty($config['checkout_link_url'])) {
+            throw ValidationException::withMessages([
+                'clickpesa' => ['ClickPesa checkout link URL is missing.'],
+            ]);
+        }
+
         $token = $this->getAuthorizationToken($config);
 
         $requestPayload = $this->buildCheckoutPayload($payment, $payload, $config);
 
-        $secret = $config['api_secret'] ?? null;
-        if (! $secret) {
-            throw ValidationException::withMessages([
-                'clickpesa' => ['ClickPesa API secret is missing.'],
-            ]);
+        // Checksum is documented for hosted checkout requests.
+        // Some accounts may enforce it; if secret is not configured, we skip it for now.
+        if (! empty($config['api_secret'])) {
+            $requestPayload['checksum'] = $this->checksumService->generate(
+                $config['api_secret'],
+                $requestPayload
+            );
         }
 
-        $requestPayload['checksumMethod'] = 'canonical';
-        $requestPayload['checksum'] = $this->checksumService->generate($secret, $requestPayload);
+        Log::info('ClickPesa checkout request prepared.', [
+            'payment_id' => $payment->id,
+            'payment_reference' => $payment->reference,
+            'checkout_link_url' => $config['checkout_link_url'],
+            'payload' => $requestPayload,
+        ]);
 
         $response = Http::timeout((int) ($config['timeout_seconds'] ?? 30))
             ->acceptJson()
             ->withToken($token)
             ->post($config['checkout_link_url'], $requestPayload);
+
+        Log::info('ClickPesa checkout response received.', [
+            'payment_id' => $payment->id,
+            'status' => $response->status(),
+            'body' => $response->json() ?: $response->body(),
+        ]);
 
         if (! $response->successful()) {
             Log::error('ClickPesa checkout initialization failed.', [
@@ -76,16 +94,16 @@ class ClickPesaPaymentService implements PaymentProviderInterface
 
         return [
             'provider' => 'clickpesa',
-            'provider_reference' => data_get($data, 'data.paymentReference')
-                ?? data_get($data, 'paymentReference')
-                ?? data_get($data, 'data.reference')
-                ?? data_get($data, 'reference')
+            'provider_reference' => data_get($data, 'paymentReference')
+                ?? data_get($data, 'data.paymentReference')
+                ?? data_get($data, 'orderReference')
+                ?? data_get($data, 'data.orderReference')
                 ?? $payment->reference,
             'status' => 'pending',
-            'checkout_url' => data_get($data, 'data.checkoutUrl')
+            'checkout_url' => data_get($data, 'checkoutLink')
+                ?? data_get($data, 'data.checkoutLink')
                 ?? data_get($data, 'checkoutUrl')
-                ?? data_get($data, 'data.url')
-                ?? data_get($data, 'url'),
+                ?? data_get($data, 'data.checkoutUrl'),
             'payment_instructions' => [
                 'message' => 'ClickPesa checkout initialized successfully.',
                 'channels' => [$payload['payment_method'] ?? 'mobile_money'],
@@ -102,24 +120,30 @@ class ClickPesaPaymentService implements PaymentProviderInterface
             ]);
         }
 
-        $authPayload = [
-            'clientId' => $config['client_id'],
-            'apiKey' => $config['api_key'],
-        ];
-
-        $secret = $config['api_secret'] ?? null;
-        if (! $secret) {
+        if (empty($config['client_id']) || empty($config['api_key'])) {
             throw ValidationException::withMessages([
-                'clickpesa' => ['ClickPesa API secret is missing.'],
+                'clickpesa' => ['ClickPesa client ID or API key is missing.'],
             ]);
         }
 
-        $authPayload['checksumMethod'] = 'canonical';
-        $authPayload['checksum'] = $this->checksumService->generate($secret, $authPayload);
+        Log::info('ClickPesa auth request prepared.', [
+            'auth_url' => $config['auth_url'],
+            'client_id_present' => ! empty($config['client_id']),
+            'api_key_present' => ! empty($config['api_key']),
+        ]);
 
         $response = Http::timeout((int) ($config['timeout_seconds'] ?? 30))
             ->acceptJson()
-            ->post($config['auth_url'], $authPayload);
+            ->withHeaders([
+                'client-id' => $config['client_id'],
+                'api-key' => $config['api_key'],
+            ])
+            ->post($config['auth_url']);
+
+        Log::info('ClickPesa auth response received.', [
+            'status' => $response->status(),
+            'body' => $response->json() ?: $response->body(),
+        ]);
 
         if (! $response->successful()) {
             Log::error('ClickPesa authorization failed.', [
@@ -134,9 +158,10 @@ class ClickPesaPaymentService implements PaymentProviderInterface
 
         $data = $response->json();
 
-        $token = data_get($data, 'data.token')
-            ?? data_get($data, 'token')
-            ?? data_get($data, 'access_token');
+        $token = data_get($data, 'token')
+            ?? data_get($data, 'data.token')
+            ?? data_get($data, 'access_token')
+            ?? data_get($data, 'data.access_token');
 
         if (! $token) {
             throw ValidationException::withMessages([
@@ -149,27 +174,23 @@ class ClickPesaPaymentService implements PaymentProviderInterface
 
     protected function buildCheckoutPayload(Payment $payment, array $payload, array $config): array
     {
+        $payment->loadMissing(['purchaseRequest', 'investor']);
+
         $purchaseRequest = $payment->purchaseRequest;
         $investor = $payment->investor;
 
         return [
+            'totalPrice' => (string) $payment->amount,
             'orderReference' => $payment->reference,
-            'amount' => (string) $payment->amount,
-            'currency' => $payment->currency ?: ($config['currency'] ?? 'TZS'),
+            'orderCurrency' => $payment->currency ?: ($config['currency'] ?? 'TZS'),
+            'customerName' => $investor?->full_name ?? 'Investor',
+            'customerEmail' => $investor?->email
+                ?? data_get($investor, 'user.email')
+                ?? null,
+            'customerPhone' => $investor?->phone_primary
+                ?? $investor?->phone
+                ?? null,
             'description' => "Investment payment for purchase request {$purchaseRequest->uuid}",
-            'paymentMethod' => $payload['payment_method'] ?? $payment->payment_method,
-            'returnUrl' => $config['return_url'],
-            'webhookUrl' => $config['webhook_url'],
-            'customer' => [
-                'customerName' => $investor?->full_name ?? 'Investor',
-                'customerEmail' => $investor?->email ?? $investor?->user?->email ?? null,
-                'customerPhoneNumber' => $investor?->phone_primary ?? null,
-            ],
-            'metadata' => [
-                'payment_id' => $payment->id,
-                'purchase_request_id' => $purchaseRequest?->id,
-                'investor_id' => $payment->investor_id,
-            ],
         ];
     }
 }
