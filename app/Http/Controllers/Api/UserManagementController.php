@@ -43,7 +43,10 @@ class UserManagementController extends Controller
         ]);
     }
 
-  public function store(StoreUserRequest $request): JsonResponse
+
+
+
+    public function store(StoreUserRequest $request): JsonResponse
 {
     try {
         $this->authorizeAction();
