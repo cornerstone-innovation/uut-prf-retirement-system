@@ -13,6 +13,7 @@ use App\Http\Requests\User\UpdateUserStatusRequest;
 use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Illuminate\Http\Request;
 
 class UserManagementController extends Controller
 {
@@ -44,14 +45,23 @@ class UserManagementController extends Controller
     }
 
 
-
-
-    public function store(StoreUserRequest $request): JsonResponse
+    public function store(Request $request): JsonResponse
 {
     try {
         $this->authorizeAction();
 
-        $validated = $request->validated();
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'phone' => ['nullable', 'string', 'max:30'],
+            'password' => ['required', 'string', 'min:8'],
+            'is_active' => ['nullable', 'boolean'],
+            'investor_id' => ['nullable', 'exists:investors,id'],
+            'roles' => ['nullable', 'array'],
+            'roles.*' => ['string'],
+            'permissions' => ['nullable', 'array'],
+            'permissions.*' => ['string'],
+        ]);
 
         $roles = $validated['roles'] ?? [];
         $permissions = $validated['permissions'] ?? [];
@@ -69,17 +79,30 @@ class UserManagementController extends Controller
             'investor_id' => $validated['investor_id'] ?? null,
         ]);
 
-        if (! empty($roles)) {
+        if (!empty($roles)) {
             $user->syncRoles($roles);
         }
 
-        if (! empty($permissions)) {
+        if (!empty($permissions)) {
             $user->syncPermissions($permissions);
         }
 
+        $user->load('investor');
+
         return response()->json([
             'message' => 'User created successfully.',
-            'data' => new UserManagementResource($user->fresh('investor')),
+            'data' => [
+                'id' => $user->id,
+                'uuid' => $user->uuid,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'is_active' => (bool) $user->is_active,
+                'investor_id' => $user->investor_id,
+                'roles' => $user->getRoleNames()->values(),
+                'permissions' => $user->getDirectPermissions()->pluck('name')->values(),
+                'all_permissions' => $user->getAllPermissions()->pluck('name')->values(),
+            ],
         ], 201);
     } catch (\Throwable $e) {
         return response()->json([
@@ -87,9 +110,12 @@ class UserManagementController extends Controller
             'error' => $e->getMessage(),
             'line' => $e->getLine(),
             'file' => $e->getFile(),
+            'trace_hint' => class_basename($e),
         ], 500);
     }
 }
+
+
     public function update(UpdateUserRequest $request, User $user): JsonResponse
     {
         $this->authorizeAction();
