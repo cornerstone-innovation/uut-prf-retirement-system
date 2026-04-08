@@ -69,6 +69,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/purchase-requests', [PurchaseRequestController::class, 'store']);
     Route::post('/purchase-requests/{purchaseRequest}/initialize-payment', [PaymentController::class, 'initialize']);
     Route::post('/purchase-requests/{purchaseRequest}/allocate', [PurchaseRequestController::class, 'allocate']);
+    Route::post('/payments/{payment}/sync-status', [PaymentController::class, 'syncStatus']);
     Route::post('/payments/mock-callback', [PaymentController::class, 'mockCallback']);
     Route::get('/portfolio/summary', [PortfolioController::class, 'summary']);
     Route::get('/portfolio/holdings', [PortfolioController::class, 'holdings']);
