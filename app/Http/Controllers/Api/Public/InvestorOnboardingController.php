@@ -70,4 +70,25 @@ class InvestorOnboardingController extends Controller
             ],
         ], 201);
     }
+
+
+
+        public function checkEmailAvailability(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        $exists = \App\Models\User::query()
+            ->where('email', $validated['email'])
+            ->exists();
+
+        return response()->json([
+            'message' => 'Email availability checked successfully.',
+            'data' => [
+                'email' => $validated['email'],
+                'available' => ! $exists,
+            ],
+        ]);
+    }
 }

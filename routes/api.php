@@ -154,5 +154,6 @@ Route::prefix('investor-onboarding')->group(function () {
     Route::post('/verify-nida', [InvestorNidaVerificationController::class, 'verify']);
     Route::post('/send-otp', [InvestorOtpController::class, 'send']);
     Route::post('/verify-otp', [InvestorOtpController::class, 'verify']);
+    Route::post('/check-email', [InvestorOnboardingController::class, 'checkEmailAvailability']);
     Route::post('/complete-registration', [InvestorOnboardingController::class, 'complete']);
 });
