@@ -8,11 +8,13 @@ use App\Models\PurchaseRequest;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use App\Application\Services\Purchase\PurchaseAllocationService;
 
 class PaymentService
 {
     public function __construct(
-        private readonly ClickPesaUssdPushService $ussdPushService
+        private readonly ClickPesaUssdPushService $ussdPushService,
+        private readonly PurchaseAllocationService $purchaseAllocationService
     ) {
     }
 
@@ -164,31 +166,64 @@ class PaymentService
         });
     }
 
-    public function syncPaymentStatus(Payment $payment): Payment
+    public function syncPaymentStatus(Payment $payment, ?int $processedBy = null): array
     {
-        $payment->loadMissing(['purchaseRequest', 'attempts']);
+        $payment->loadMissing(['purchaseRequest', 'attempts', 'purchaseRequest.investmentTransaction']);
 
         $statusResponses = $this->ussdPushService->queryPaymentStatus($payment->reference);
-
         $statusRow = collect($statusResponses)->first();
 
         if (! $statusRow) {
-            return $payment->fresh(['purchaseRequest', 'attempts']);
+            return [
+                'payment' => $payment->fresh(['purchaseRequest', 'attempts']),
+                'auto_allocated' => false,
+                'allocation' => null,
+            ];
         }
 
         $providerStatus = data_get($statusRow, 'status');
         $mappedStatus = $this->mapProviderStatusToLocalStatus($providerStatus);
 
+        $allocationResult = null;
+        $autoAllocated = false;
+
         if ($mappedStatus === 'paid') {
-            return $this->markPaid($payment, [
+            $payment = $this->markPaid($payment, [
                 'status_query' => $statusRow,
             ]);
+
+            $purchaseRequest = $payment->purchaseRequest?->fresh(['investmentTransaction', 'latestPayment', 'plan']);
+
+            if (
+                $purchaseRequest &&
+                $purchaseRequest->status === 'payment_received' &&
+                ! $purchaseRequest->investmentTransaction
+            ) {
+                $allocationResult = $this->purchaseAllocationService->allocate(
+                    purchaseRequest: $purchaseRequest,
+                    processedBy: $processedBy
+                );
+
+                $autoAllocated = true;
+            }
+
+            return [
+                'payment' => $payment->fresh(['purchaseRequest', 'attempts']),
+                'auto_allocated' => $autoAllocated,
+                'allocation' => $allocationResult,
+            ];
         }
 
         if ($mappedStatus === 'failed') {
-            return $this->markFailed($payment, [
+            $payment = $this->markFailed($payment, [
                 'status_query' => $statusRow,
             ]);
+
+            return [
+                'payment' => $payment->fresh(['purchaseRequest', 'attempts']),
+                'auto_allocated' => false,
+                'allocation' => null,
+            ];
         }
 
         $payment->update([
@@ -198,7 +233,11 @@ class PaymentService
             ]),
         ]);
 
-        return $payment->fresh(['purchaseRequest', 'attempts']);
+        return [
+            'payment' => $payment->fresh(['purchaseRequest', 'attempts']),
+            'auto_allocated' => false,
+            'allocation' => null,
+        ];
     }
 
     public function markPaid(Payment $payment, array $payload = []): Payment

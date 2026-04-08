@@ -25,7 +25,14 @@ class PurchaseAllocationService
             'investor',
             'plan.activeRule',
             'latestPayment',
+            'investmentTransaction',
         ]);
+
+        if ($purchaseRequest->status === 'completed') {
+            throw ValidationException::withMessages([
+                'purchase_request' => ['This purchase request has already been completed.'],
+            ]);
+        }
 
         if ($purchaseRequest->status !== 'payment_received') {
             throw ValidationException::withMessages([
@@ -33,7 +40,7 @@ class PurchaseAllocationService
             ]);
         }
 
-        if ($purchaseRequest->investmentTransaction()->exists()) {
+        if ($purchaseRequest->investmentTransaction) {
             throw ValidationException::withMessages([
                 'purchase_request' => ['This purchase request has already been allocated.'],
             ]);
@@ -47,16 +54,6 @@ class PurchaseAllocationService
             ]);
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Pricing date
-        |--------------------------------------------------------------------------
-        | For now, use today's date as the pricing date.
-        | Later, this will be replaced by cutoff-time logic:
-        | - before cutoff  => same business day
-        | - after cutoff   => next business day
-        |--------------------------------------------------------------------------
-        */
         $pricingDate = $purchaseRequest->pricing_date?->toDateString();
 
         if (! $pricingDate) {
@@ -85,8 +82,7 @@ class PurchaseAllocationService
         }
 
         $grossAmount = (float) $purchaseRequest->amount;
-        $netAmount = $grossAmount; // fees/loads can be introduced later
-
+        $netAmount = $grossAmount;
         $units = round($netAmount / $nav, 6);
 
         return DB::transaction(function () use (
@@ -99,6 +95,16 @@ class PurchaseAllocationService
             $pricingDate,
             $navRecord
         ) {
+            $existingTransaction = InvestmentTransaction::query()
+                ->where('purchase_request_id', $purchaseRequest->id)
+                ->first();
+
+            if ($existingTransaction) {
+                throw ValidationException::withMessages([
+                    'purchase_request' => ['This purchase request has already been allocated.'],
+                ]);
+            }
+
             $transaction = InvestmentTransaction::create([
                 'uuid' => (string) Str::uuid(),
                 'investor_id' => $purchaseRequest->investor_id,
@@ -149,7 +155,7 @@ class PurchaseAllocationService
             ]);
 
             return [
-                'purchase_request' => $purchaseRequest->fresh(['plan', 'latestPayment']),
+                'purchase_request' => $purchaseRequest->fresh(['plan', 'latestPayment', 'investmentTransaction']),
                 'transaction' => $transaction->fresh(),
                 'unit_lot' => $lot->fresh(),
             ];

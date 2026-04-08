@@ -14,6 +14,9 @@ use App\Application\Services\Payment\PaymentService;
 use App\Models\PaymentCallback;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use App\Http\Resources\PurchaseRequestResource;
+use App\Http\Resources\InvestmentTransactionResource;
+use App\Http\Resources\UnitLotResource;
 
 class PaymentController extends Controller
 {
@@ -112,7 +115,14 @@ class PaymentController extends Controller
                 ], 403);
             }
 
-            $payment = $paymentService->syncPaymentStatus($payment);
+            $result = $paymentService->syncPaymentStatus(
+                payment: $payment,
+                processedBy: $user?->id
+            );
+
+            $payment = $result['payment'];
+            $allocation = $result['allocation'] ?? null;
+            $autoAllocated = (bool) ($result['auto_allocated'] ?? false);
 
             $auditLogger->log(
                 userId: $user?->id,
@@ -124,6 +134,7 @@ class PaymentController extends Controller
                     'status' => $payment->status,
                     'purchase_request_status' => $payment->purchaseRequest?->status,
                     'provider_reference' => $payment->provider_reference,
+                    'auto_allocated' => $autoAllocated,
                 ],
                 request: request()
             );
@@ -132,6 +143,12 @@ class PaymentController extends Controller
                 'message' => 'Payment status synced successfully.',
                 'data' => [
                     'payment' => new PaymentResource($payment->load('purchaseRequest')),
+                    'auto_allocated' => $autoAllocated,
+                    'allocation' => $allocation ? [
+                        'purchase_request' => new PurchaseRequestResource($allocation['purchase_request']),
+                        'transaction' => new InvestmentTransactionResource($allocation['transaction']),
+                        'unit_lot' => new UnitLotResource($allocation['unit_lot']),
+                    ] : null,
                 ],
             ]);
         } catch (ValidationException $e) {

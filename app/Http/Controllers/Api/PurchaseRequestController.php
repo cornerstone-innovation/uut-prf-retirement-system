@@ -16,6 +16,7 @@ use App\Http\Resources\UnitLotResource;
 use App\Models\PurchaseRequest;
 use App\Application\Services\Purchase\PurchasePreviewService;
 use Illuminate\Validation\ValidationException;
+use App\Http\Resources\PaymentResource;
 
 class PurchaseRequestController extends Controller
 {
@@ -37,6 +38,36 @@ class PurchaseRequestController extends Controller
         return response()->json([
             'message' => 'Purchase requests retrieved successfully.',
             'data' => PurchaseRequestResource::collection($requests),
+        ]);
+    }
+
+    public function showLatestPayment(
+        Request $request,
+        PurchaseRequest $purchaseRequest
+    ): JsonResponse {
+        $investor = $request->user()?->investor;
+
+        if (! $investor || (int) $investor->id !== (int) $purchaseRequest->investor_id) {
+            return response()->json([
+                'message' => 'You are not allowed to view payment status for this purchase request.',
+            ], 403);
+        }
+
+        $purchaseRequest->load(['latestPayment', 'investmentTransaction', 'plan']);
+
+        return response()->json([
+            'message' => 'Latest payment status retrieved successfully.',
+            'data' => [
+                'purchase_request' => new PurchaseRequestResource($purchaseRequest),
+                'latest_payment' => $purchaseRequest->latestPayment
+                    ? new PaymentResource($purchaseRequest->latestPayment)
+                    : null,
+                'can_retry_payment' => $purchaseRequest->status === 'pending_payment'
+                    && optional($purchaseRequest->latestPayment)->status === 'failed',
+                'is_processing_payment' => optional($purchaseRequest->latestPayment)->status === 'processing',
+                'is_paid' => optional($purchaseRequest->latestPayment)->status === 'paid',
+                'is_allocated' => (bool) $purchaseRequest->investmentTransaction,
+            ],
         ]);
     }
 
@@ -169,34 +200,41 @@ class PurchaseRequestController extends Controller
         PurchaseAllocationService $allocationService,
         AuditLogger $auditLogger
     ): JsonResponse {
-        $result = $allocationService->allocate(
-            purchaseRequest: $purchaseRequest,
-            processedBy: $request->user()?->id,
-        );
+        try {
+            $result = $allocationService->allocate(
+                purchaseRequest: $purchaseRequest,
+                processedBy: $request->user()?->id,
+            );
 
-        $auditLogger->log(
-            userId: $request->user()?->id,
-            action: 'purchase_request.allocated',
-            entityType: 'purchase_request',
-            entityId: $purchaseRequest->id,
-            entityReference: $purchaseRequest->uuid,
-            metadata: [
-                'investment_transaction_id' => $result['transaction']->id,
-                'unit_lot_id' => $result['unit_lot']->id,
-                'units' => $result['transaction']->units,
-                'nav_per_unit' => $result['transaction']->nav_per_unit,
-                'status' => $result['purchase_request']->status,
-            ],
-            request: $request
-        );
+            $auditLogger->log(
+                userId: $request->user()?->id,
+                action: 'purchase_request.allocated',
+                entityType: 'purchase_request',
+                entityId: $purchaseRequest->id,
+                entityReference: $purchaseRequest->uuid,
+                metadata: [
+                    'investment_transaction_id' => $result['transaction']->id,
+                    'unit_lot_id' => $result['unit_lot']->id,
+                    'units' => $result['transaction']->units,
+                    'nav_per_unit' => $result['transaction']->nav_per_unit,
+                    'status' => $result['purchase_request']->status,
+                ],
+                request: $request
+            );
 
-        return response()->json([
-            'message' => 'Purchase request allocated successfully.',
-            'data' => [
-                'purchase_request' => new PurchaseRequestResource($result['purchase_request']),
-                'transaction' => new InvestmentTransactionResource($result['transaction']),
-                'unit_lot' => new UnitLotResource($result['unit_lot']),
-            ],
-        ]);
+            return response()->json([
+                'message' => 'Purchase request allocated successfully.',
+                'data' => [
+                    'purchase_request' => new PurchaseRequestResource($result['purchase_request']),
+                    'transaction' => new InvestmentTransactionResource($result['transaction']),
+                    'unit_lot' => new UnitLotResource($result['unit_lot']),
+                ],
+            ]);
+        } catch (ValidationException $e) {
+            return response()->json([
+                'message' => 'Purchase request allocation failed.',
+                'errors' => $e->errors(),
+            ], 422);
+        }
     }
 }

@@ -67,6 +67,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/plans/{plan}/purchase-preview', [PlanController::class, 'purchasePreview']);
     Route::get('/purchase-requests', [PurchaseRequestController::class, 'index']);
     Route::post('/purchase-requests', [PurchaseRequestController::class, 'store']);
+    Route::get('/purchase-requests/{purchaseRequest}/latest-payment', [PurchaseRequestController::class, 'showLatestPayment']);
     Route::post('/purchase-requests/{purchaseRequest}/initialize-payment', [PaymentController::class, 'initialize']);
     Route::post('/purchase-requests/{purchaseRequest}/allocate', [PurchaseRequestController::class, 'allocate']);
     Route::post('/payments/{payment}/sync-status', [PaymentController::class, 'syncStatus']);
