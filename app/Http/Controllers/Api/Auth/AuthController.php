@@ -20,55 +20,134 @@ use Illuminate\Validation\ValidationException;
 class AuthController extends Controller
 {
     public function login(Request $request): JsonResponse
-{
-    $validated = $request->validate([
-        'email' => ['required', 'email'],
-        'password' => ['required', 'string'],
-    ]);
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
+        ]);
 
-    $user = User::where('email', $validated['email'])->first();
+        $user = User::query()
+            ->with(['roles'])
+            ->where('email', $validated['email'])
+            ->first();
 
-    if (! $user || ! Hash::check($validated['password'], $user->password)) {
-        throw ValidationException::withMessages([
-            'email' => ['The provided credentials are incorrect.'],
+        if (! $user || ! Hash::check($validated['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials are incorrect.'],
+            ]);
+        }
+
+        if (! $user->is_active) {
+            return response()->json([
+                'message' => 'This user account is inactive.',
+            ], 403);
+        }
+
+        if ($user->hasRole('investor')) {
+            return response()->json([
+                'message' => 'This login portal is for internal users only.',
+            ], 403);
+        }
+
+        $token = $user->createToken('ops-web')->plainTextToken;
+
+        return response()->json([
+            'message' => 'Login successful.',
+            'token' => $token,
+            'user' => [
+                'id' => $user->id,
+                'uuid' => $user->uuid,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'roles' => $user->getRoleNames()->values(),
+                'permissions' => $user->getAllPermissions()->pluck('name')->values(),
+            ],
         ]);
     }
 
-    if (! $user->is_active) {
+    public function investorLogin(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
+        ]);
+
+        $user = User::query()
+            ->with(['roles', 'investor'])
+            ->where('email', $validated['email'])
+            ->first();
+
+        if (! $user || ! Hash::check($validated['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'email' => ['The provided credentials are incorrect.'],
+            ]);
+        }
+
+        if (! $user->is_active) {
+            return response()->json([
+                'message' => 'This user account is inactive.',
+            ], 403);
+        }
+
+        if (! $user->hasRole('investor')) {
+            return response()->json([
+                'message' => 'This login portal is for investors only.',
+            ], 403);
+        }
+
+        if (! $user->investor) {
+            return response()->json([
+                'message' => 'No investor profile is linked to this account.',
+            ], 403);
+        }
+
+        $token = $user->createToken('investor-web')->plainTextToken;
+
         return response()->json([
-            'message' => 'This user account is inactive.',
-        ], 403);
+            'message' => 'Login successful.',
+            'token' => $token,
+            'user' => [
+                'id' => $user->id,
+                'uuid' => $user->uuid,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'roles' => $user->getRoleNames()->values(),
+                'permissions' => $user->getAllPermissions()->pluck('name')->values(),
+                'investor' => [
+                    'id' => $user->investor->id,
+                    'uuid' => $user->investor->uuid,
+                    'investor_number' => $user->investor->investor_number,
+                    'full_name' => $user->investor->full_name,
+                ],
+            ],
+        ]);
     }
 
-    $token = $user->createToken('ops-web')->plainTextToken;
+    public function user(Request $request): JsonResponse
+    {
+        $user = $request->user()?->loadMissing(['roles', 'investor']);
 
-    return response()->json([
-        'message' => 'Login successful.',
-        'token' => $token,
-        'user' => [
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'phone' => $user->phone,
-            'roles' => $user->getRoleNames()->values(),
-            'permissions' => $user->getAllPermissions()->pluck('name')->values(),
-        ],
-    ]);
-}
-
-public function user(Request $request): JsonResponse
-{
-    $user = $request->user();
-
-    return response()->json([
-        'id' => $user->id,
-        'name' => $user->name,
-        'email' => $user->email,
-        'phone' => $user->phone,
-        'roles' => $user->getRoleNames()->values(),
-        'permissions' => $user->getAllPermissions()->pluck('name')->values(),
-    ]);
-}
+        return response()->json([
+            'message' => 'Authenticated user retrieved successfully.',
+            'data' => [
+                'id' => $user?->id,
+                'uuid' => $user?->uuid,
+                'name' => $user?->name,
+                'email' => $user?->email,
+                'phone' => $user?->phone,
+                'roles' => $user?->getRoleNames()->values() ?? [],
+                'permissions' => $user?->getAllPermissions()->pluck('name')->values() ?? [],
+                'investor' => $user?->investor ? [
+                    'id' => $user->investor->id,
+                    'uuid' => $user->investor->uuid,
+                    'investor_number' => $user->investor->investor_number,
+                    'full_name' => $user->investor->full_name,
+                ] : null,
+            ],
+        ]);
+    }
     public function logout(Request $request): JsonResponse
     {
         $user = $request->user();
