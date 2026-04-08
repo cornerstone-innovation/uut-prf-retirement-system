@@ -53,7 +53,7 @@ class PaymentService
             $createdBy
         ) {
             $nextPaymentNumber = (Payment::max('id') ?? 0) + 1;
-            $reference = 'PAY-' . str_pad((string) $nextPaymentNumber, 6, '0', STR_PAD_LEFT);
+            $reference = 'PAY' . str_pad((string) $nextPaymentNumber, 6, '0', STR_PAD_LEFT);
 
             $payment = Payment::create([
                 'uuid' => (string) Str::uuid(),
