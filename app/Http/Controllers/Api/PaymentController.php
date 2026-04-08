@@ -16,80 +16,85 @@ use Illuminate\Support\Str;
 
 class PaymentController extends Controller
 {
-    public function initialize(
-        InitializePaymentRequest $request,
-        PurchaseRequest $purchaseRequest,
-        PaymentService $paymentService,
-        AuditLogger $auditLogger
-    ): JsonResponse {
-        $investor = $request->user()?->investor;
+     public function initialize(
+    InitializePaymentRequest $request,
+    PurchaseRequest $purchaseRequest,
+    PaymentService $paymentService,
+    AuditLogger $auditLogger
+): JsonResponse {
+    $investor = $request->user()?->investor;
 
-        if (! $investor || (int) $investor->id !== (int) $purchaseRequest->investor_id) {
-            return response()->json([
-                'message' => 'You are not allowed to initialize payment for this purchase request.',
-            ], 403);
-        }
-
-        if ($purchaseRequest->status === 'awaiting_next_nav_confirmation') {
-            return response()->json([
-                'message' => 'This purchase request was submitted after cutoff. Please wait for the next active NAV and reconfirm before payment.',
-                'errors' => [
-                    'purchase_request' => [
-                        'This purchase request was submitted after cutoff. Please wait for the next active NAV and reconfirm before payment.',
-                    ],
-                ],
-            ], 422);
-        }
-
-        try {
-            $result = $paymentService->initialize(
-                purchaseRequest: $purchaseRequest,
-                paymentMethod: $request->input('payment_method'),
-                phoneNumber: $request->input('phone_number'),
-                createdBy: $request->user()->id,
-            );
-
-            $auditLogger->log(
-                userId: $request->user()->id,
-                action: 'payment.initialized',
-                entityType: 'payment',
-                entityId: $result['payment']->id,
-                entityReference: $result['payment']->reference,
-                metadata: [
-                    'purchase_request_id' => $purchaseRequest->id,
-                    'payment_method' => $request->input('payment_method'),
-                    'phone_number' => $request->input('phone_number'),
-                    'status' => $result['payment']->status,
-                    'provider_status' => $result['provider_status'] ?? null,
-                    'provider_transaction_id' => $result['provider_transaction_id'] ?? null,
-                ],
-                request: $request
-            );
-
-            return response()->json([
-                'message' => 'Payment initialized successfully.',
-                'data' => [
-                    'payment' => new PaymentResource($result['payment']),
-                    'preview_response' => $result['preview_response'] ?? null,
-                    'initiate_response' => $result['initiate_response'] ?? null,
-                    'provider_status' => $result['provider_status'] ?? null,
-                    'provider_transaction_id' => $result['provider_transaction_id'] ?? null,
-                    'payment_instructions' => [
-                        'message' => 'USSD push request sent successfully. Please complete the payment on your phone.',
-                        'phone_number' => $request->input('phone_number'),
-                    ],
-                ],
-            ], 201);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'message' => 'Payment initialization failed.',
-                'error' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-                'trace_hint' => class_basename($e),
-            ], 500);
-        }
+    if (! $investor || (int) $investor->id !== (int) $purchaseRequest->investor_id) {
+        return response()->json([
+            'message' => 'You are not allowed to initialize payment for this purchase request.',
+        ], 403);
     }
+
+    if ($purchaseRequest->status === 'awaiting_next_nav_confirmation') {
+        return response()->json([
+            'message' => 'This purchase request was submitted after cutoff. Please wait for the next active NAV and reconfirm before payment.',
+            'errors' => [
+                'purchase_request' => [
+                    'This purchase request was submitted after cutoff. Please wait for the next active NAV and reconfirm before payment.',
+                ],
+            ],
+        ], 422);
+    }
+
+    try {
+        $result = $paymentService->initialize(
+            purchaseRequest: $purchaseRequest,
+            paymentMethod: $request->input('payment_method'),
+            phoneNumber: $request->input('phone_number'),
+            createdBy: $request->user()->id,
+        );
+
+        $auditLogger->log(
+            userId: $request->user()->id,
+            action: 'payment.initialized',
+            entityType: 'payment',
+            entityId: $result['payment']->id,
+            entityReference: $result['payment']->reference,
+            metadata: [
+                'purchase_request_id' => $purchaseRequest->id,
+                'payment_method' => $request->input('payment_method'),
+                'phone_number' => $request->input('phone_number'),
+                'status' => $result['payment']->status,
+                'provider_status' => $result['provider_status'] ?? null,
+                'provider_transaction_id' => $result['provider_transaction_id'] ?? null,
+            ],
+            request: $request
+        );
+
+        return response()->json([
+            'message' => 'Payment initialized successfully.',
+            'data' => [
+                'payment' => new PaymentResource($result['payment']),
+                'preview_response' => $result['preview_response'] ?? null,
+                'initiate_response' => $result['initiate_response'] ?? null,
+                'provider_status' => $result['provider_status'] ?? null,
+                'provider_transaction_id' => $result['provider_transaction_id'] ?? null,
+                'payment_instructions' => [
+                    'message' => 'USSD push request sent successfully. Please complete the payment on your phone.',
+                    'phone_number' => $request->input('phone_number'),
+                ],
+            ],
+        ], 201);
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return response()->json([
+            'message' => 'Payment initialization failed.',
+            'errors' => $e->errors(),
+        ], 422);
+    } catch (\Throwable $e) {
+        return response()->json([
+            'message' => 'Payment initialization failed.',
+            'error' => $e->getMessage(),
+            'line' => $e->getLine(),
+            'file' => $e->getFile(),
+            'trace_hint' => class_basename($e),
+        ], 500);
+    }
+}
 
     public function mockCallback(
         MockPaymentCallbackRequest $request,
