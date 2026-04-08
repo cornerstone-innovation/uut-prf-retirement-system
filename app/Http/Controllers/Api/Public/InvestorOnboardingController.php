@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers\Api\Public;
 
-use App\Models\InvestorOnboardingSession;
+use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
+use App\Models\InvestorOnboardingSession;
 use App\Http\Requests\Onboarding\StartInvestorOnboardingRequest;
 use App\Http\Requests\Onboarding\CompleteInvestorRegistrationRequest;
 use App\Application\Services\Onboarding\InvestorOnboardingService;
@@ -71,15 +73,13 @@ class InvestorOnboardingController extends Controller
         ], 201);
     }
 
-
-
-        public function checkEmailAvailability(Request $request): JsonResponse
+    public function checkEmailAvailability(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'email' => ['required', 'email'],
         ]);
 
-        $exists = \App\Models\User::query()
+        $exists = User::query()
             ->where('email', $validated['email'])
             ->exists();
 
