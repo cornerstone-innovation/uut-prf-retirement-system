@@ -15,7 +15,22 @@ class InitializePaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'payment_method' => ['required', Rule::in(['mobile_money', 'card'])],
+            'payment_method' => ['required', Rule::in(['mobile_money'])],
+            'phone_number' => [
+                'required',
+                'string',
+                'regex:/^255\d{9}$/',
+            ],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'payment_method.required' => 'Payment method is required.',
+            'payment_method.in' => 'Only mobile money is supported for this payment flow.',
+            'phone_number.required' => 'Phone number is required for USSD push payment.',
+            'phone_number.regex' => 'Phone number must be in the format 2557XXXXXXXX.',
         ];
     }
 }

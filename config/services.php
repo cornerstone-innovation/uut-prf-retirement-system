@@ -39,7 +39,9 @@ return [
         // Base & endpoint URLs
         'base_url' => env('CLICKPESA_BASE_URL'),
         'auth_url' => env('CLICKPESA_AUTH_URL'),
-        'checkout_link_url' => env('CLICKPESA_CHECKOUT_LINK_URL'),
+        'ussd_preview_url' => env('CLICKPESA_USSD_PREVIEW_URL'),
+        'ussd_initiate_url' => env('CLICKPESA_USSD_INITIATE_URL'),
+        'payment_status_url' => env('CLICKPESA_PAYMENT_STATUS_URL'),
 
         // Credentials
         'client_id' => env('CLICKPESA_CLIENT_ID'),
@@ -47,13 +49,9 @@ return [
         'api_secret' => env('CLICKPESA_API_SECRET'),
         'webhook_secret' => env('CLICKPESA_WEBHOOK_SECRET'),
 
-        // URLs
-        'return_url' => env('CLICKPESA_RETURN_URL'),
-        'webhook_url' => env('CLICKPESA_WEBHOOK_URL'),
-
         // Optional
         'currency' => env('CLICKPESA_CURRENCY', 'TZS'),
-        'integration_type' => env('CLICKPESA_INTEGRATION_TYPE', 'hosted'),
+        'integration_type' => env('CLICKPESA_INTEGRATION_TYPE', 'ussd_push'),
         'timeout_seconds' => env('CLICKPESA_TIMEOUT_SECONDS', 30),
     ],
 
