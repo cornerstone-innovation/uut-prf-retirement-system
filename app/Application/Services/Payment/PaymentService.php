@@ -233,6 +233,20 @@ class PaymentService
             ]),
         ]);
 
+            if (in_array($status, ['SUCCESS', 'SETTLED'])) {
+        $payment->update([
+            'status' => 'paid',
+            'paid_at' => now(),
+        ]);
+
+        $purchaseRequest = $payment->purchaseRequest;
+
+        if ($purchaseRequest && $purchaseRequest->status !== 'allocated') {
+            app(\App\Application\Services\Investment\AllocateInvestmentService::class)
+                ->allocate($purchaseRequest);
+        }
+    }
+
         return [
             'payment' => $payment->fresh(['purchaseRequest', 'attempts']),
             'auto_allocated' => false,

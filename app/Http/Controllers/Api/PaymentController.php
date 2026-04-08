@@ -167,6 +167,8 @@ class PaymentController extends Controller
         }
     }
 
+    
+
     public function mockCallback(
         MockPaymentCallbackRequest $request,
         PaymentService $paymentService,
@@ -212,4 +214,23 @@ class PaymentController extends Controller
             ],
         ]);
     }
+
+
+
+    public function latestStatus($purchaseRequestId)
+{
+    $purchaseRequest = \App\Models\PurchaseRequest::with('latestPayment')->findOrFail($purchaseRequestId);
+
+    $payment = $purchaseRequest->latestPayment;
+
+    if (! $payment) {
+        return response()->json([
+            'message' => 'No payment found.',
+        ], 404);
+    }
+
+    return response()->json([
+        'payment' => $payment,
+    ]);
+}
 }

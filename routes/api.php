@@ -39,6 +39,7 @@ Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
 // Public webhook route
 Route::post('/webhooks/clickpesa', [ClickPesaWebhookController::class, 'handle']);
+Route::get('/purchase-requests/{purchaseRequest}/payment-status', [PaymentController::class, 'latestStatus']);
 
 
 
