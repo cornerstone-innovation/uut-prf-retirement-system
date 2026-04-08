@@ -20,10 +20,10 @@ class YesIdVerificationService
         $response = [
             'success' => true,
             'provider_reference' => 'YESID-' . Str::upper(Str::random(12)),
-            'full_name' => 'Mock Verified Investor',
-            'first_name' => 'Mock',
-            'last_name' => 'Investor',
-            'date_of_birth' => '1995-01-15',
+            'full_name' => '',
+            'first_name' => '',
+            'last_name' => '',
+            'date_of_birth' => '',
             'nationality' => 'Tanzanian',
         ];
 
