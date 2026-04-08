@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\Public\ClickPesaWebhookController;
 
 
 Route::post('/login', [AuthController::class, 'login']);
+Route::post('/investor/login', [AuthController::class, 'investorLogin']);
 Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
 Route::post('/reset-password', [AuthController::class, 'resetPassword']);
 
