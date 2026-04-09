@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\Public\InvestorNidaVerificationController;
 use App\Http\Controllers\Api\UserManagementController;
 use App\Http\Controllers\Api\AccessControlController;
 use App\Http\Controllers\Api\Public\ClickPesaWebhookController;
+use App\Http\Controllers\Api\AdminDashboardController;
 
 
 
@@ -109,6 +110,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/roles', [AccessControlController::class, 'roles']);
     Route::get('/permissions', [AccessControlController::class, 'permissions']);       
     Route::post('/purchase-requests/{purchaseRequest}/reconfirm', [PurchaseRequestController::class, 'reconfirm']); 
+    Route::get('/dashboard/summary', [AdminDashboardController::class, 'summary']);
   
 
 
