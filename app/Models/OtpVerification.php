@@ -28,6 +28,7 @@ class OtpVerification extends Model
     protected function casts(): array
     {
         return [
+            'attempts' => 'integer',
             'expires_at' => 'datetime',
             'verified_at' => 'datetime',
             'verified_externally' => 'boolean',
