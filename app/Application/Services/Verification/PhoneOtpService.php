@@ -103,105 +103,109 @@ class PhoneOtpService
         return $otp->fresh();
     }
 
-    protected function sendViaBeem(string $phoneNumber, string $purpose): OtpVerification
-    {
-        $normalizedPhone = $this->normalizePhoneNumber($phoneNumber);
+protected function sendViaBeem(string $phoneNumber, string $purpose): OtpVerification
+{
+    $normalizedPhone = $this->normalizePhoneNumber($phoneNumber);
 
-        $baseUrl = rtrim((string) config('otp.beem.base_url'), '/');
-        $apiKey = config('otp.beem.api_key');
-        $secretKey = config('otp.beem.secret_key');
-        $appId = config('otp.beem.app_id');
-        $timeout = (int) config('otp.beem.timeout', 30);
+    $baseUrl = rtrim((string) config('otp.beem.base_url'), '/');
+    $apiKey = config('otp.beem.api_key');
+    $secretKey = config('otp.beem.secret_key');
+    $appId = config('otp.beem.app_id');
+    $timeout = (int) config('otp.beem.timeout', 30);
 
-        if (! $apiKey || ! $secretKey || ! $appId) {
-            throw ValidationException::withMessages([
-                'otp' => ['Beem OTP credentials are not configured correctly.'],
-            ]);
-        }
-
-        $payload = [
-            'appId' => (string) $appId,
-            'msisdn' => $normalizedPhone,
-        ];
-
-        $response = Http::withBasicAuth($apiKey, $secretKey)
-            ->acceptJson()
-            ->contentType('application/json')
-            ->timeout($timeout)
-            ->post($baseUrl . '/request', $payload);
-
-        $json = $response->json();
-
-        Log::info('Beem OTP send response received.', [
-            'phone_number' => $normalizedPhone,
-            'purpose' => $purpose,
-            'status_code' => $response->status(),
-            'response' => $json ?: $response->body(),
+    if (! $apiKey || ! $secretKey || ! $appId) {
+        throw ValidationException::withMessages([
+            'otp' => ['Beem OTP credentials are not configured correctly.'],
         ]);
+    }
 
-        if (! $response->successful()) {
-            throw ValidationException::withMessages([
-                'otp' => [
-                    'Beem OTP request failed with HTTP ' . $response->status() . '.',
-                ],
-            ]);
-        }
+    $payload = [
+        'appId' => (string) $appId,
+        'msisdn' => $normalizedPhone,
+    ];
 
-        /**
-         * Beem docs emphasize message codes:
-         * 100 = OTP Message has been submitted successfully
-         */
-        $messageCode = (int) (
-            data_get($json, 'data.message.code')
-            ?? data_get($json, 'message.code')
-            ?? data_get($json, 'code')
-            ?? 0
-        );
+    Log::info('Beem OTP send request prepared.', [
+        'base_url' => $baseUrl,
+        'app_id' => $appId,
+        'phone_number' => $normalizedPhone,
+        'purpose' => $purpose,
+        'payload' => $payload,
+    ]);
 
-        $messageText = (string) (
-            data_get($json, 'data.message.message')
-            ?? data_get($json, 'message.message')
-            ?? data_get($json, 'message')
-            ?? 'Unknown response'
-        );
+    $response = Http::withBasicAuth($apiKey, $secretKey)
+        ->acceptJson()
+        ->contentType('application/json')
+        ->timeout($timeout)
+        ->post($baseUrl . '/request', $payload);
 
-        $pinId = (string) (
-            data_get($json, 'data.pinId')
-            ?? data_get($json, 'pinId')
-            ?? data_get($json, 'data.pin_id')
-            ?? data_get($json, 'pin_id')
-            ?? ''
-        );
+    $json = $response->json();
 
-        if ($messageCode !== 100 || empty($pinId)) {
-            throw ValidationException::withMessages([
-                'otp' => [
-                    "Beem OTP request failed. Code: {$messageCode}. Message: {$messageText}",
-                ],
-            ]);
-        }
+    Log::info('Beem OTP send response received.', [
+        'phone_number' => $normalizedPhone,
+        'purpose' => $purpose,
+        'status_code' => $response->status(),
+        'response' => $json ?: $response->body(),
+    ]);
 
-        return OtpVerification::create([
-            'uuid' => (string) Str::uuid(),
-            'phone_number' => $normalizedPhone,
-            'purpose' => $purpose,
-            'code' => null,
-            'provider' => 'beem',
-            'provider_reference' => $pinId,
-            'external_pin_id' => $pinId,
-            'status' => 'sent',
-            'attempts' => 0,
-            'expires_at' => now()->addMinutes((int) config('otp.expiry_minutes', 10)),
-            'verified_externally' => false,
-            'metadata' => [
-                'provider' => 'beem',
-                'request_payload' => $payload,
-                'send_response' => $json,
-                'send_message_code' => $messageCode,
-                'send_message_text' => $messageText,
+    if (! $response->successful()) {
+        throw ValidationException::withMessages([
+            'otp' => [
+                'Beem OTP request failed with HTTP ' . $response->status() . '. Response: ' . json_encode($json ?: $response->body()),
             ],
         ]);
     }
+
+    $messageCode = (int) (
+        data_get($json, 'data.message.code')
+        ?? data_get($json, 'message.code')
+        ?? data_get($json, 'code')
+        ?? 0
+    );
+
+    $messageText = (string) (
+        data_get($json, 'data.message.message')
+        ?? data_get($json, 'message.message')
+        ?? data_get($json, 'message')
+        ?? 'Unknown response'
+    );
+
+    $pinId = (string) (
+        data_get($json, 'data.pinId')
+        ?? data_get($json, 'pinId')
+        ?? data_get($json, 'data.pin_id')
+        ?? data_get($json, 'pin_id')
+        ?? ''
+    );
+
+    if ($messageCode !== 100 || empty($pinId)) {
+        throw ValidationException::withMessages([
+            'otp' => [
+                "Beem OTP request failed. Code: {$messageCode}. Message: {$messageText}. Full response: " . json_encode($json),
+            ],
+        ]);
+    }
+
+    return OtpVerification::create([
+        'uuid' => (string) Str::uuid(),
+        'phone_number' => $normalizedPhone,
+        'purpose' => $purpose,
+        'code' => null,
+        'provider' => 'beem',
+        'provider_reference' => $pinId,
+        'external_pin_id' => $pinId,
+        'status' => 'sent',
+        'attempts' => 0,
+        'expires_at' => now()->addMinutes((int) config('otp.expiry_minutes', 10)),
+        'verified_externally' => false,
+        'metadata' => [
+            'provider' => 'beem',
+            'request_payload' => $payload,
+            'send_response' => $json,
+            'send_message_code' => $messageCode,
+            'send_message_text' => $messageText,
+        ],
+    ]);
+}
 
     protected function verifyViaBeem(string $phoneNumber, string $otpCode, string $purpose): OtpVerification
     {
