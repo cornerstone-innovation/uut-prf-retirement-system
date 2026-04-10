@@ -18,4 +18,30 @@ class SendPhoneOtpRequest extends FormRequest
             'phone_number' => ['required', 'string', 'max:30'],
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'session_uuid.required' => 'Onboarding session is required.',
+            'session_uuid.uuid' => 'Session UUID is invalid.',
+            'session_uuid.exists' => 'Onboarding session was not found.',
+            'phone_number.required' => 'Phone number is required.',
+            'phone_number.max' => 'Phone number is too long.',
+        ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('phone_number')) {
+            $this->merge([
+                'phone_number' => trim((string) $this->input('phone_number')),
+            ]);
+        }
+
+        if ($this->has('session_uuid')) {
+            $this->merge([
+                'session_uuid' => trim((string) $this->input('session_uuid')),
+            ]);
+        }
+    }
 }
