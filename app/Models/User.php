@@ -42,4 +42,19 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->belongsTo(Investor::class);
     }
+
+    public function approverOne()
+{
+    return $this->belongsTo(User::class, 'approved_by_1');
+}
+
+public function approverTwo()
+{
+    return $this->belongsTo(User::class, 'approved_by_2');
+}
+
+public function publisher()
+{
+    return $this->belongsTo(User::class, 'published_by');
+}
 }

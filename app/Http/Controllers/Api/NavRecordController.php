@@ -24,7 +24,12 @@ class NavRecordController extends Controller
             403
         );
 
-        $query = NavRecord::query()->with('plan');
+        $query = NavRecord::query()->with([
+            'plan',
+            'approverOne',
+            'approverTwo',
+            'publisher',
+        ]);
 
         if ($request->filled('plan_id')) {
             $query->where('plan_id', $request->integer('plan_id'));
@@ -66,6 +71,13 @@ class NavRecordController extends Controller
             createdBy: $request->user()?->id,
         );
 
+        $record->load([
+            'plan',
+            'approverOne',
+            'approverTwo',
+            'publisher',
+        ]);
+
         $auditLogger->log(
             userId: $request->user()?->id,
             action: 'nav_record.created',
@@ -83,7 +95,7 @@ class NavRecordController extends Controller
 
         return response()->json([
             'message' => 'NAV record created successfully.',
-            'data' => new NavRecordResource($record->load('plan')),
+            'data' => new NavRecordResource($record),
         ], 201);
     }
 
@@ -94,9 +106,16 @@ class NavRecordController extends Controller
             403
         );
 
+        $navRecord->load([
+            'plan',
+            'approverOne',
+            'approverTwo',
+            'publisher',
+        ]);
+
         return response()->json([
             'message' => 'NAV record retrieved successfully.',
-            'data' => new NavRecordResource($navRecord->load('plan')),
+            'data' => new NavRecordResource($navRecord),
         ]);
     }
 
@@ -117,6 +136,13 @@ class NavRecordController extends Controller
             notes: $request->input('notes'),
         );
 
+        $record->load([
+            'plan',
+            'approverOne',
+            'approverTwo',
+            'publisher',
+        ]);
+
         $auditLogger->log(
             userId: $request->user()->id,
             action: 'nav_record.approved',
@@ -126,14 +152,16 @@ class NavRecordController extends Controller
             metadata: [
                 'status' => $record->status,
                 'approved_by_1' => $record->approved_by_1,
+                'approved_by_1_name' => $record->approverOne?->name,
                 'approved_by_2' => $record->approved_by_2,
+                'approved_by_2_name' => $record->approverTwo?->name,
             ],
             request: $request
         );
 
         return response()->json([
             'message' => 'NAV record approved successfully.',
-            'data' => new NavRecordResource($record->load('plan')),
+            'data' => new NavRecordResource($record),
         ]);
     }
 
@@ -160,6 +188,13 @@ class NavRecordController extends Controller
             processedBy: $request->user()?->id,
         );
 
+        $record->load([
+            'plan',
+            'approverOne',
+            'approverTwo',
+            'publisher',
+        ]);
+
         $auditLogger->log(
             userId: $request->user()?->id,
             action: 'nav_record.published',
@@ -169,6 +204,7 @@ class NavRecordController extends Controller
             metadata: [
                 'status' => $record->status,
                 'published_by' => $record->published_by,
+                'published_by_name' => $record->publisher?->name,
                 'published_at' => optional($record->published_at)?->toDateTimeString(),
                 'auto_allocation' => [
                     'matched_requests' => $allocationSummary['matched_requests'],
@@ -182,7 +218,7 @@ class NavRecordController extends Controller
         return response()->json([
             'message' => 'NAV record published successfully.',
             'data' => [
-                'nav_record' => new NavRecordResource($record->load('plan')),
+                'nav_record' => new NavRecordResource($record),
                 'auto_allocation' => $allocationSummary,
             ],
         ]);

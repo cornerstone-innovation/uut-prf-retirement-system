@@ -207,7 +207,9 @@ protected function sendViaBeem(string $phoneNumber, string $purpose): OtpVerific
     ]);
 }
 
-    protected function verifyViaBeem(string $phoneNumber, string $otpCode, string $purpose): OtpVerification
+
+
+   protected function verifyViaBeem(string $phoneNumber, string $otpCode, string $purpose): OtpVerification
     {
         $normalizedPhone = $this->normalizePhoneNumber($phoneNumber);
 
