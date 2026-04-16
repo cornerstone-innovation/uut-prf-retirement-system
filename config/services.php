@@ -55,4 +55,9 @@ return [
         'timeout_seconds' => env('CLICKPESA_TIMEOUT_SECONDS', 30),
     ],
 
+
+    'dse' => [
+    'base_url' => env('DSE_API_BASE_URL', 'https://api.dse.co.tz/api'),
+],
+
 ];
