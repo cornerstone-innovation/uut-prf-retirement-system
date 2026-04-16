@@ -106,4 +106,33 @@ public function activeRule()
             }
         });
     }
+    public function configuration()
+    {
+        return $this->hasOne(PlanConfiguration::class);
+    }
+
+    public function equityHoldings()
+    {
+        return $this->hasMany(PlanEquityHolding::class);
+    }
+
+    public function bondHoldings()
+    {
+        return $this->hasMany(PlanBondHolding::class);
+    }
+
+    public function cashPositions()
+    {
+        return $this->hasMany(PlanCashPosition::class);
+    }
+
+    public function navOverrideLogs()
+    {
+        return $this->hasMany(NavOverrideLog::class);
+    }
+
+    public function phaseOverrideLogs()
+    {
+        return $this->hasMany(PlanPhaseOverrideLog::class);
+    }
 }

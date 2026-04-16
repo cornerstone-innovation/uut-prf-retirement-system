@@ -36,6 +36,11 @@ class NavRecord extends Model
             'approved_at_1' => 'datetime',
             'approved_at_2' => 'datetime',
             'published_at' => 'datetime',
+            'valuation_date' => 'date',
+            'approved_at_1' => 'datetime',
+            'approved_at_2' => 'datetime',
+            'published_at' => 'datetime',
+            'nav_per_unit' => 'decimal:6',
         ];
     }
 
@@ -62,6 +67,11 @@ class NavRecord extends Model
     public function publisher()
     {
         return $this->belongsTo(User::class, 'published_by');
+    }
+
+    public function overrideLogs()
+    {
+        return $this->hasMany(NavOverrideLog::class);
     }
 
 }
