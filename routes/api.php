@@ -28,6 +28,7 @@ use App\Http\Controllers\Api\UserManagementController;
 use App\Http\Controllers\Api\AccessControlController;
 use App\Http\Controllers\Api\Public\ClickPesaWebhookController;
 use App\Http\Controllers\Api\AdminDashboardController;
+use App\Http\Controllers\Api\Admin\MarketSecurityController;
 
 
 
@@ -49,6 +50,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/user', [AuthController::class, 'user']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/email/verification-notification', [AuthController::class, 'sendVerificationEmail']);
+
+    Route::get('/market-securities/search', [MarketSecurityController::class, 'search']);
+    Route::post('/market-securities/sync-selected', [MarketSecurityController::class, 'syncSelected']);
+
 
     Route::post('/company-directors/{companyDirector}/verify-identity', [DirectorVerificationController::class, 'verifyIdentity']);
 
