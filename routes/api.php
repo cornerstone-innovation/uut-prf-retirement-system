@@ -51,8 +51,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::post('/email/verification-notification', [AuthController::class, 'sendVerificationEmail']);
 
-    Route::get('/market-securities/search', [MarketSecurityController::class, 'search']);
-    Route::post('/market-securities/sync-selected', [MarketSecurityController::class, 'syncSelected']);
+    Route::get('/admin/market-securities/search', [MarketSecurityController::class, 'search']);
+    Route::post('/admin/market-securities/sync-selected', [MarketSecurityController::class, 'syncSelected']);
 
 
     Route::post('/company-directors/{companyDirector}/verify-identity', [DirectorVerificationController::class, 'verifyIdentity']);
