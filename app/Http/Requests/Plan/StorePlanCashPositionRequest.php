@@ -6,23 +6,18 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StorePlanCashPositionRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
-        return false;
+        return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
         return [
-            //
+            'position_date' => ['required', 'date'],
+            'cash_amount' => ['required', 'numeric', 'gte:0'],
+            'source_type' => ['nullable', 'string', 'max:100'],
+            'notes' => ['nullable', 'string'],
         ];
     }
 }
