@@ -41,4 +41,5 @@ class MarketSecurity extends Model
     {
         return $this->hasMany(PlanEquityHolding::class);
     }
+
 }
