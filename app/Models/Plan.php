@@ -138,6 +138,12 @@ public function activeRule()
     public function valuationSnapshots()
     {
         return $this->hasMany(\App\Models\PlanValuationSnapshot::class);
+
+    }
+
+    public function transactions()
+    {
+        return $this->hasMany(\App\Models\InvestmentTransaction::class);
     }
  
 }
