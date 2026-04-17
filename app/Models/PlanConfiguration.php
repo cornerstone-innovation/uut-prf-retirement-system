@@ -29,6 +29,11 @@ class PlanConfiguration extends Model
         'phase_override_reason',
         'phase_override_by',
         'phase_override_at',
+        'total_units_on_offer',
+        'initial_offer_price',
+        'allow_post_offer_sales',
+        'unit_sale_cap_type',
+
     ];
 
     protected function casts(): array
@@ -43,6 +48,11 @@ class PlanConfiguration extends Model
             'allow_phase_override' => 'boolean',
             'is_phase_overridden' => 'boolean',
             'phase_override_at' => 'datetime',
+            'total_units_on_offer' => 'decimal:6',
+            'initial_offer_price' => 'decimal:6',
+            'initial_offer_start_date' => 'date',
+            'initial_offer_end_date' => 'date',
+            'allow_post_offer_sales' => 'boolean',
         ];
     }
 

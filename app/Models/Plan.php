@@ -135,4 +135,8 @@ public function activeRule()
     {
         return $this->hasMany(PlanPhaseOverrideLog::class);
     }
+    public function valuationSnapshots()
+    {
+        return $this->hasMany(\App\Models\PlanValuationSnapshot::class);
+    }
 }
