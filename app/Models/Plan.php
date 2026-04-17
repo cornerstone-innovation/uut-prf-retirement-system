@@ -139,4 +139,5 @@ public function activeRule()
     {
         return $this->hasMany(\App\Models\PlanValuationSnapshot::class);
     }
+ 
 }

@@ -32,6 +32,7 @@ use App\Http\Controllers\Api\Admin\MarketSecurityController;
 use App\Http\Controllers\Api\Admin\PlanEquityHoldingController;
 use App\Http\Controllers\Api\Admin\PlanBondHoldingController;
 use App\Http\Controllers\Api\Admin\PlanCashPositionController;
+use App\Http\Controllers\Api\Admin\PlanUnitSummaryController;
 
 
 
@@ -64,6 +65,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::get('/plans/{plan}/cash-positions', [PlanCashPositionController::class, 'index']);
     Route::post('/plans/{plan}/cash-positions', [PlanCashPositionController::class, 'store']);
+
+    Route::get('/plans/{plan}/unit-summary', [PlanUnitSummaryController::class, 'show']);
 
 
     Route::post('/company-directors/{companyDirector}/verify-identity', [DirectorVerificationController::class, 'verifyIdentity']);
