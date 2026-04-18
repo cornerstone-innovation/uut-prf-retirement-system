@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Str;
 use App\Models\PlanBondHolding;
 use App\Http\Requests\Plan\StorePlanBondHoldingRequest;
+use App\Http\Requests\Plan\UpdatePlanBondHoldingRequest;
 
 class PlanBondHoldingController extends Controller
 {
@@ -49,5 +50,31 @@ class PlanBondHoldingController extends Controller
             'message' => 'Plan bond holding created successfully.',
             'data' => $holding,
         ], 201);
+    }
+
+    public function update(
+        UpdatePlanBondHoldingRequest $request,
+        Plan $plan,
+        PlanBondHolding $bondHolding
+    ): JsonResponse {
+        abort_unless((int) $bondHolding->plan_id === (int) $plan->id, 404);
+
+        $bondHolding->update($request->validated());
+
+        return response()->json([
+            'message' => 'Plan bond holding updated successfully.',
+            'data' => $bondHolding->fresh(),
+        ]);
+    }
+
+    public function destroy(Plan $plan, PlanBondHolding $bondHolding): JsonResponse
+    {
+        abort_unless((int) $bondHolding->plan_id === (int) $plan->id, 404);
+
+        $bondHolding->delete();
+
+        return response()->json([
+            'message' => 'Plan bond holding deleted successfully.',
+        ]);
     }
 }

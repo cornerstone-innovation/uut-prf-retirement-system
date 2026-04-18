@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Str;
 use App\Models\PlanCashPosition;
 use App\Http\Requests\Plan\StorePlanCashPositionRequest;
+use App\Http\Requests\Plan\UpdatePlanCashPositionRequest;
 
 class PlanCashPositionController extends Controller
 {
@@ -40,5 +41,31 @@ class PlanCashPositionController extends Controller
             'message' => 'Plan cash position created successfully.',
             'data' => $position,
         ], 201);
+    }
+
+    public function update(
+        UpdatePlanCashPositionRequest $request,
+        Plan $plan,
+        PlanCashPosition $cashPosition
+    ): JsonResponse {
+        abort_unless((int) $cashPosition->plan_id === (int) $plan->id, 404);
+
+        $cashPosition->update($request->validated());
+
+        return response()->json([
+            'message' => 'Plan cash position updated successfully.',
+            'data' => $cashPosition->fresh(),
+        ]);
+    }
+
+    public function destroy(Plan $plan, PlanCashPosition $cashPosition): JsonResponse
+    {
+        abort_unless((int) $cashPosition->plan_id === (int) $plan->id, 404);
+
+        $cashPosition->delete();
+
+        return response()->json([
+            'message' => 'Plan cash position deleted successfully.',
+        ]);
     }
 }

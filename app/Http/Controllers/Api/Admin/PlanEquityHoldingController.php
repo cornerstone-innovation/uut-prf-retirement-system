@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Str;
 use App\Models\PlanEquityHolding;
 use App\Http\Requests\Plan\StorePlanEquityHoldingRequest;
+use App\Http\Requests\Plan\UpdatePlanEquityHoldingRequest;
 
 class PlanEquityHoldingController extends Controller
 {
@@ -48,5 +49,46 @@ class PlanEquityHoldingController extends Controller
             'message' => 'Plan equity holding created successfully.',
             'data' => $holding->load('marketSecurity'),
         ], 201);
+    }
+
+    public function update(
+        UpdatePlanEquityHoldingRequest $request,
+        Plan $plan,
+        PlanEquityHolding $equityHolding
+    ): JsonResponse {
+        abort_unless((int) $equityHolding->plan_id === (int) $plan->id, 404);
+
+        $payload = $request->validated();
+
+        if (
+            array_key_exists('quantity', $payload) &&
+            array_key_exists('invested_amount', $payload) &&
+            ! array_key_exists('average_cost_per_share', $payload)
+        ) {
+            $quantity = (float) $payload['quantity'];
+            $investedAmount = (float) $payload['invested_amount'];
+
+            $payload['average_cost_per_share'] = $quantity > 0
+                ? round($investedAmount / $quantity, 6)
+                : 0;
+        }
+
+        $equityHolding->update($payload);
+
+        return response()->json([
+            'message' => 'Plan equity holding updated successfully.',
+            'data' => $equityHolding->fresh()->load('marketSecurity'),
+        ]);
+    }
+
+    public function destroy(Plan $plan, PlanEquityHolding $equityHolding): JsonResponse
+    {
+        abort_unless((int) $equityHolding->plan_id === (int) $plan->id, 404);
+
+        $equityHolding->delete();
+
+        return response()->json([
+            'message' => 'Plan equity holding deleted successfully.',
+        ]);
     }
 }

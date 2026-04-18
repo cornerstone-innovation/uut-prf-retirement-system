@@ -73,6 +73,18 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/plans/{plan}/valuations', [PlanValuationController::class, 'index']);
     Route::post('/plans/{plan}/calculate-nav', [PlanValuationController::class, 'calculate']);
 
+    Route::patch('/plans/{plan}/equity-holdings/{equityHolding}', [PlanEquityHoldingController::class, 'update']);
+    Route::delete('/plans/{plan}/equity-holdings/{equityHolding}', [PlanEquityHoldingController::class, 'destroy']);
+
+    Route::patch('/plans/{plan}/bond-holdings/{bondHolding}', [PlanBondHoldingController::class, 'update']);
+    Route::delete('/plans/{plan}/bond-holdings/{bondHolding}', [PlanBondHoldingController::class, 'destroy']);
+
+    Route::patch('/plans/{plan}/cash-positions/{cashPosition}', [PlanCashPositionController::class, 'update']);
+    Route::delete('/plans/{plan}/cash-positions/{cashPosition}', [PlanCashPositionController::class, 'destroy']);
+
+
+
+
     Route::post('/company-directors/{companyDirector}/verify-identity', [DirectorVerificationController::class, 'verifyIdentity']);
 
     Route::post('/investor-documents/{investorDocument}/verify', [InvestorDocumentController::class, 'verify']);
