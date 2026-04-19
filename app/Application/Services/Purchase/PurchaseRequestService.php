@@ -9,12 +9,14 @@ use App\Models\PurchaseRequest;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use App\Application\Services\Plan\PlanEligibilityService;
+use App\Application\Services\Plan\PlanUnitAvailabilityService;
 
 class PurchaseRequestService
 {
     public function __construct(
         private readonly PlanEligibilityService $planEligibilityService,
-        private readonly \App\Application\Services\Nav\CutoffTimeService $cutoffTimeService
+        private readonly \App\Application\Services\Nav\CutoffTimeService $cutoffTimeService,
+        private readonly PlanUnitAvailabilityService $planUnitAvailabilityService
     ) {
     }
 
@@ -41,6 +43,14 @@ class PurchaseRequestService
             isAdditionalInvestment: $isAdditionalInvestment,
             isSip: $isSip
         );
+
+        $plan->loadMissing('configuration');
+
+        $unitAvailability = $this->planUnitAvailabilityService
+            ->ensureCanAllocateEstimatedUnits(
+                plan: $plan,
+                amount: $amount
+            );
 
         $pricing = $this->cutoffTimeService->resolvePricingDate($plan, now());
 
@@ -82,6 +92,9 @@ class PurchaseRequestService
                     'submitted_at_local' => $pricing['submitted_at_local'] ?? null,
                     'submitted_after_cutoff' => $pricing['submitted_after_cutoff'] ?? false,
                     'requires_reconfirmation' => $pricing['requires_reconfirmation'] ?? false,
+                    'unit_price_used' => $unitAvailability['unit_price_used'],
+                    'estimated_units' => $unitAvailability['estimated_units'],
+                    'remaining_units_for_sale_at_request' => $unitAvailability['remaining_units_for_sale'],
                 ],
                 'created_by' => $createdBy,
                 'updated_by' => $createdBy,

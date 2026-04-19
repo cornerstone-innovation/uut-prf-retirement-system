@@ -3,13 +3,16 @@
 namespace App\Application\Services\Plan;
 
 use App\Models\Plan;
+use App\Models\InvestmentTransaction;
 use Illuminate\Validation\ValidationException;
 
 class PlanUnitResolverService
 {
     public function getIssuedUnits(Plan $plan): float
     {
-        return (float) $plan->transactions()
+        return (float) InvestmentTransaction::query()
+            ->where('plan_id', $plan->id)
+            ->where('transaction_type', 'purchase')
             ->where('status', 'completed')
             ->sum('units');
     }
@@ -45,7 +48,7 @@ class PlanUnitResolverService
             ]);
         }
 
-        if ($config->unit_sale_cap_type !== 'fixed_cap') {
+        if (($config->unit_sale_cap_type ?? 'fixed_cap') !== 'fixed_cap') {
             return;
         }
 

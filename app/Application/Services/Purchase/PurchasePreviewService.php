@@ -9,15 +9,17 @@ use Illuminate\Validation\ValidationException;
 use App\Application\Services\Nav\NavRecordService;
 use App\Application\Services\Plan\PlanEligibilityService;
 use App\Application\Services\Nav\CutoffTimeService;
+use App\Application\Services\Plan\PlanUnitAvailabilityService;
 
 class PurchasePreviewService
 {
-    public function __construct(
-        private readonly PlanEligibilityService $planEligibilityService,
-        private readonly NavRecordService $navRecordService,
-        private readonly CutoffTimeService $cutoffTimeService
-    ) {
-    }
+        public function __construct(
+            private readonly PlanEligibilityService $planEligibilityService,
+            private readonly NavRecordService $navRecordService,
+            private readonly CutoffTimeService $cutoffTimeService,
+            private readonly PlanUnitAvailabilityService $planUnitAvailabilityService
+        ) {
+        }
 
     public function preview(
         Investor $investor,
@@ -100,13 +102,32 @@ class PurchasePreviewService
                 ]);
             }
 
-            $estimatedUnits = round($netInvestableAmount / $nav, 6);
+
+            $plan->loadMissing('configuration');
+
+            $unitAvailability = $this->planUnitAvailabilityService
+                ->ensureCanAllocateEstimatedUnits(
+                    plan: $plan,
+                    amount: $netInvestableAmount,
+                    price: $nav // IMPORTANT: force NAV used in preview
+                );
+
+            $estimatedUnits = $unitAvailability['estimated_units'];
+
+           
 
             $canPayNow = (bool) ($pricing['can_pay_now'] ?? false);
             $requiresReconfirmation = (bool) ($pricing['requires_reconfirmation'] ?? false);
             $submittedAfterCutoff = (bool) ($pricing['submitted_after_cutoff'] ?? false);
 
             return [
+
+            'unit_availability' => [
+            'unit_price_used' => $unitAvailability['unit_price_used'],
+            'estimated_units' => $unitAvailability['estimated_units'],
+            'remaining_units_for_sale' => $unitAvailability['remaining_units_for_sale'],
+            'can_allocate' => $unitAvailability['can_allocate'],
+        ],
                 'investor_id' => $investor->id,
                 'investor_number' => $investor->investor_number,
                 'plan_id' => $plan->id,

@@ -13,10 +13,10 @@ use App\Application\Services\Nav\NavRecordService;
 class PurchaseAllocationService
 {
     public function __construct(
-        private readonly NavRecordService $navRecordService
+        private readonly NavRecordService $navRecordService,
+        private readonly \App\Application\Services\Plan\PlanUnitResolverService $planUnitResolverService
     ) {
     }
-
     public function allocate(
         PurchaseRequest $purchaseRequest,
         ?int $processedBy = null
@@ -84,6 +84,11 @@ class PurchaseAllocationService
         $grossAmount = (float) $purchaseRequest->amount;
         $netAmount = $grossAmount;
         $units = round($netAmount / $nav, 6);
+
+        $this->planUnitResolverService->assertUnitsAvailable(
+        plan: $purchaseRequest->plan,
+        requestedUnits: $units
+);
 
         return DB::transaction(function () use (
             $purchaseRequest,
