@@ -58,7 +58,7 @@ class PurchaseRequestService
             ? 'pending_payment'
             : 'awaiting_next_nav_confirmation';
 
-        return DB::transaction(function () use (
+            return DB::transaction(function () use (
             $investor,
             $plan,
             $amount,
@@ -68,6 +68,7 @@ class PurchaseRequestService
             $notes,
             $createdBy,
             $eligibility,
+            $unitAvailability,
             $pricing,
             $status
         ) {
