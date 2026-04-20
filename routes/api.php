@@ -83,6 +83,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::delete('/plans/{plan}/cash-positions/{cashPosition}', [PlanCashPositionController::class, 'destroy']);
     Route::get('/plans/{plan}/valuation-snapshot/latest', [PlanValuationController::class, 'latest']);
    
+    Route::post('/plans/{plan}/calculate-nav-preview', [PlanValuationController::class, 'preview']);
+    Route::post('/plans/{plan}/nav-records/from-calculation', [PlanValuationController::class, 'acceptPreview']);   
 
 
 

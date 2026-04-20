@@ -6,10 +6,32 @@ use App\Models\Plan;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Http\Controllers\Controller;
+use App\Application\Services\Nav\PreviewPlanNavService;
 use App\Application\Services\Nav\CalculatePlanNavService;
+use App\Application\Services\Nav\CreateNavRecordFromCalculationService;
 
 class PlanValuationController extends Controller
 {
+    public function preview(
+        Request $request,
+        Plan $plan,
+        PreviewPlanNavService $previewPlanNavService
+    ): JsonResponse {
+        $validated = $request->validate([
+            'valuation_date' => ['required', 'date'],
+        ]);
+
+        $preview = $previewPlanNavService->preview(
+            plan: $plan,
+            valuationDate: $validated['valuation_date'],
+        );
+
+        return response()->json([
+            'message' => 'Plan NAV preview generated successfully.',
+            'data' => $preview,
+        ]);
+    }
+
     public function calculate(
         Request $request,
         Plan $plan,
@@ -28,6 +50,35 @@ class PlanValuationController extends Controller
         return response()->json([
             'message' => 'Plan NAV calculated successfully.',
             'data' => $snapshot,
+        ]);
+    }
+
+    public function acceptPreview(
+        Request $request,
+        Plan $plan,
+        PreviewPlanNavService $previewPlanNavService,
+        CreateNavRecordFromCalculationService $createNavRecordFromCalculationService
+    ): JsonResponse {
+        $validated = $request->validate([
+            'valuation_date' => ['required', 'date'],
+            'notes' => ['nullable', 'string'],
+        ]);
+
+        $preview = $previewPlanNavService->preview(
+            plan: $plan,
+            valuationDate: $validated['valuation_date'],
+        );
+
+        $navRecord = $createNavRecordFromCalculationService->create(
+            plan: $plan,
+            calculationData: $preview,
+            createdBy: $request->user()?->id,
+            notes: $validated['notes'] ?? 'Created from NAV calculation preview.',
+        );
+
+        return response()->json([
+            'message' => 'NAV record created from calculation preview successfully.',
+            'data' => $navRecord,
         ]);
     }
 
