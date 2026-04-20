@@ -32,14 +32,15 @@ class MarketSecurity extends Model
         ];
     }
 
-    public function priceSnapshots()
-    {
-        return $this->hasMany(MarketPriceSnapshot::class);
-    }
+    
 
     public function equityHoldings()
     {
         return $this->hasMany(PlanEquityHolding::class);
     }
+    public function priceSnapshots()
+{
+    return $this->hasMany(\App\Models\MarketPriceSnapshot::class, 'market_security_id', 'id');
+}
 
 }

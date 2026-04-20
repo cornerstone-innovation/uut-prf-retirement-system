@@ -39,8 +39,9 @@ class MarketPriceSnapshot extends Model
         ];
     }
 
+   
     public function marketSecurity()
     {
-        return $this->belongsTo(MarketSecurity::class);
+        return $this->belongsTo(\App\Models\MarketSecurity::class, 'market_security_id', 'id');
     }
 }
