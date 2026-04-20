@@ -48,10 +48,10 @@ class BuildPlanNavSnapshotDataService
                 continue;
             }
 
-            $priceSnapshot = $marketSecurity->priceSnapshots()
-                ->whereDate('snapshot_date', $valuationDateCarbon->toDateString())
-                ->latest('id')
-                ->first();
+        $priceSnapshot = $marketSecurity->priceSnapshots()
+            ->whereDate('valuation_date', $valuationDateCarbon->toDateString())
+            ->latest('id')
+            ->first();
 
             if (! $priceSnapshot) {
                 throw ValidationException::withMessages([
@@ -62,7 +62,7 @@ class BuildPlanNavSnapshotDataService
             }
 
             $quantity = (float) $holding->quantity;
-            $marketPrice = (float) ($priceSnapshot->closing_price ?? $priceSnapshot->market_price ?? 0);
+            $marketPrice = (float) ($priceSnapshot->market_price ?? 0);
             $marketValue = round($quantity * $marketPrice, 2);
 
             $equityMarketValue += $marketValue;
@@ -75,7 +75,7 @@ class BuildPlanNavSnapshotDataService
                 'market_price' => $marketPrice,
                 'market_value' => $marketValue,
                 'price_snapshot_id' => $priceSnapshot->id,
-                'price_snapshot_date' => $priceSnapshot->snapshot_date,
+                'price_snapshot_date' => $priceSnapshot->valuation_date,
             ];
         }
 
