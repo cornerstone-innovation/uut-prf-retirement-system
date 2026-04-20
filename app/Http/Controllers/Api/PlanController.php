@@ -27,7 +27,7 @@ class PlanController extends Controller
         $investor = $user?->investor;
 
         $query = Plan::query()
-            ->with(['fund', 'category', 'activeRule']);
+            ->with(['fund', 'category', 'activeRule', 'configuration']);
 
         if ($investor) {
             $eligibilityService->ensureCanViewProducts($investor);
@@ -58,7 +58,7 @@ class PlanController extends Controller
             $eligibilityService->ensureCanViewProducts($investor);
         }
 
-        $plan->load(['fund', 'category', 'activeRule']);
+        $plan->load(['fund', 'category', 'activeRule', 'configuration']);
 
         return response()->json([
             'message' => 'Plan retrieved successfully.',
@@ -81,7 +81,7 @@ class PlanController extends Controller
 
         $plan = Plan::create($data);
 
-        $plan->load(['fund', 'category', 'activeRule']);
+        $plan->load(['fund', 'category', 'activeRule', 'configuration']);
 
         return response()->json([
             'message' => 'Plan created successfully.',
@@ -103,7 +103,7 @@ class PlanController extends Controller
 
         $plan->update($data);
 
-        $plan->load(['fund', 'category', 'activeRule']);
+        $plan->load(['fund', 'category', 'activeRule', 'configuration']);
 
         return response()->json([
             'message' => 'Plan updated successfully.',
@@ -129,7 +129,7 @@ class PlanController extends Controller
             userId: $user->id,
         );
 
-        $plan->load(['fund', 'category', 'activeRule']);
+        $plan->load(['fund', 'category', 'activeRule', 'configuration']);
 
         return response()->json([
             'message' => 'Plan rule created successfully.',
@@ -159,7 +159,7 @@ class PlanController extends Controller
             userId: $user->id,
         );
 
-        $plan->load(['fund', 'category', 'activeRule']);
+        $plan->load(['fund', 'category', 'activeRule', 'configuration']);
 
         return response()->json([
             'message' => 'Plan rule updated successfully.',
@@ -180,7 +180,7 @@ class PlanController extends Controller
             ]);
         }
 
-        $plan->load('activeRule');
+        $plan->load(['activeRule', 'configuration']);
 
         $result = $eligibilityService->ensureCanPurchase(
             investor: $investor,
@@ -208,6 +208,8 @@ class PlanController extends Controller
                 'investor' => ['Authenticated user is not linked to an investor profile.'],
             ]);
         }
+
+        $plan->load(['activeRule', 'category', 'configuration']);
 
         $preview = $previewService->preview(
             investor: $investor,
