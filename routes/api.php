@@ -81,6 +81,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::patch('/plans/{plan}/cash-positions/{cashPosition}', [PlanCashPositionController::class, 'update']);
     Route::delete('/plans/{plan}/cash-positions/{cashPosition}', [PlanCashPositionController::class, 'destroy']);
+    Route::get('/plans/{plan}/valuation-snapshot/latest', [PlanValuationController::class, 'latest']);
+   
 
 
 

@@ -43,4 +43,17 @@ class PlanValuationController extends Controller
             'data' => $rows,
         ]);
     }
+
+    public function latest(Plan $plan): JsonResponse
+    {
+        $row = $plan->valuationSnapshots()
+            ->latest('valuation_date')
+            ->latest('id')
+            ->first();
+
+        return response()->json([
+            'message' => 'Latest plan valuation snapshot retrieved successfully.',
+            'data' => $row,
+        ]);
+    }
 }
