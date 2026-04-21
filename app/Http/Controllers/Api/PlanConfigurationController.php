@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\Plan;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Str;
 use App\Http\Controllers\Controller;
 
 class PlanConfigurationController extends Controller
@@ -36,7 +37,10 @@ class PlanConfigurationController extends Controller
             'unit_sale_cap_type' => ['required', 'string'],
         ]);
 
-        $configuration = $plan->configuration()->create($validated);
+        $configuration = $plan->configuration()->create([
+            ...$validated,
+            'uuid' => (string) Str::uuid(),
+        ]);
 
         return response()->json([
             'message' => 'Plan configuration created successfully.',
@@ -65,7 +69,10 @@ class PlanConfigurationController extends Controller
 
         $configuration = $plan->configuration()->updateOrCreate(
             ['plan_id' => $plan->id],
-            $validated
+            [
+                ...$validated,
+                'uuid' => optional($plan->configuration)->uuid ?: (string) Str::uuid(),
+            ]
         );
 
         return response()->json([
