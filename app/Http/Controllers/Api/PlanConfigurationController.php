@@ -37,6 +37,7 @@ class PlanConfigurationController extends Controller
         'allow_nav_override' => ['required', 'boolean'],
         'allow_phase_override' => ['required', 'boolean'],
         'allow_post_offer_sales' => ['required', 'boolean'],
+        'holding_scope' => ['required', 'in:equity_only,bond_only,equity_and_bond'],
 
         'unit_sale_cap_type' => ['required', 'string'],
     ]);
@@ -82,6 +83,7 @@ public function update(Request $request, Plan $plan): JsonResponse
         'allow_phase_override' => ['sometimes', 'boolean'],
         'allow_post_offer_sales' => ['sometimes', 'boolean'],
         'unit_sale_cap_type' => ['sometimes', 'string'],
+        'holding_scope' => ['sometimes', 'in:equity_only,bond_only,equity_and_bond'],
     ]);
 
     $configuration = $plan->configuration;

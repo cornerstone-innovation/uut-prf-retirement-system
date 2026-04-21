@@ -14,6 +14,7 @@ class PlanConfiguration extends Model
         'plan_id',
         'plan_family',
         'valuation_method',
+        'holding_scope',
         'initial_offer_start_date',
         'initial_offer_end_date',
         'initial_offer_duration_days',
