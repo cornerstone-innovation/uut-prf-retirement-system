@@ -47,6 +47,23 @@ class PlanValuationController extends Controller
             createdBy: $request->user()?->id,
         );
 
+        // 🔥 ADD THIS BLOCK
+        $navRecord = app(\App\Application\Services\Nav\CreateNavRecordFromCalculationService::class)
+            ->create(
+                plan: $plan,
+                calculationData: $snapshot,
+                createdBy: $request->user()?->id,
+                notes: 'Auto-created from NAV calculation',
+            );
+
+        return response()->json([
+            'message' => 'Plan NAV calculated and NAV record created successfully.',
+            'data' => [
+                'snapshot' => $snapshot,
+                'nav_record' => $navRecord,
+            ],
+        ]);
+
         return response()->json([
             'message' => 'Plan NAV calculated successfully.',
             'data' => $snapshot,

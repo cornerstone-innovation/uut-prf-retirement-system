@@ -19,6 +19,7 @@ class NavRecord extends Model
         'notes',
         'metadata',
         'created_by',
+        'updated_by',
         'approved_by_1',
         'approved_at_1',
         'approved_by_2',
@@ -36,11 +37,6 @@ class NavRecord extends Model
             'approved_at_1' => 'datetime',
             'approved_at_2' => 'datetime',
             'published_at' => 'datetime',
-            'valuation_date' => 'date',
-            'approved_at_1' => 'datetime',
-            'approved_at_2' => 'datetime',
-            'published_at' => 'datetime',
-            'nav_per_unit' => 'decimal:6',
         ];
     }
 
@@ -73,5 +69,4 @@ class NavRecord extends Model
     {
         return $this->hasMany(NavOverrideLog::class);
     }
-
 }
