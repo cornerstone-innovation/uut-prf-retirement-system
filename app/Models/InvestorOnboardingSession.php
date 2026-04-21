@@ -22,6 +22,12 @@ class InvestorOnboardingSession extends Model
         'payload_snapshot',
         'metadata',
         'expires_at',
+        'document_type',
+        'document_number',
+        'document_original_name',
+        'document_mime_type',
+        'document_storage_disk',
+        'document_storage_path',
     ];
 
     protected function casts(): array

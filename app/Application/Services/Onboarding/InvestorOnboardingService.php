@@ -21,13 +21,25 @@ class InvestorOnboardingService
     ) {
     }
 
-    public function start(string $investorType, string $phoneNumber, ?string $nidaNumber = null): InvestorOnboardingSession
-    {
+    public function start(
+        string $investorType,
+        string $phoneNumber,
+        ?string $nidaNumber = null,
+        ?string $documentType = null,
+        ?string $documentNumber = null,
+        ?array $documentFile = null
+    ): InvestorOnboardingSession {
         return InvestorOnboardingSession::create([
             'uuid' => (string) Str::uuid(),
             'investor_type' => $investorType,
             'phone_number' => $phoneNumber,
             'nida_number' => $nidaNumber,
+            'document_type' => $documentType,
+            'document_number' => $documentNumber,
+            'document_original_name' => $documentFile['original_name'] ?? null,
+            'document_mime_type' => $documentFile['mime_type'] ?? null,
+            'document_storage_disk' => $documentFile['disk'] ?? null,
+            'document_storage_path' => $documentFile['path'] ?? null,
             'current_step' => 'started',
             'status' => 'active',
             'expires_at' => now()->addDay(),
