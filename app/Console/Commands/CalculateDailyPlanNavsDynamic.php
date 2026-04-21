@@ -39,9 +39,9 @@ class CalculateDailyPlanNavsDynamic extends Command
 
             $now = now($timezone);
             $navDueAt = Carbon::parse($closeTime, $timezone)->addMinutes(20);
-            $valuationDate = $now->toDateString();
+            $valuationDate = $navDueAt->toDateString();
 
-            if ($now->format('Y-m-d H:i') !== $navDueAt->format('Y-m-d H:i')) {
+            if ($now->lt($navDueAt)) {
                 continue;
             }
 

@@ -4,14 +4,11 @@ namespace App\Application\Services\Nav;
 
 use App\Models\Plan;
 use App\Models\NavRecord;
-use App\Models\PlanValuationSnapshot;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 class CalculateAndCreateNavRecordService
 {
     public function __construct(
-        private readonly BuildPlanNavSnapshotDataService $buildPlanNavSnapshotDataService,
         private readonly CalculatePlanNavService $calculatePlanNavService,
         private readonly CreateNavRecordFromCalculationService $createNavRecordFromCalculationService,
     ) {
@@ -49,13 +46,17 @@ class CalculateAndCreateNavRecordService
                     createdBy: $createdBy,
                     notes: $notes ?? 'Auto-created from NAV calculation.',
                 );
+
+                $navRecordCreated = true;
             } else {
                 $navRecord = $existingNavRecord;
+                $navRecordCreated = false;
             }
 
             return [
                 'snapshot' => $snapshot,
                 'nav_record' => $navRecord,
+                'nav_record_created' => $navRecordCreated,
             ];
         });
     }

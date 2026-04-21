@@ -9,7 +9,7 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('market-data:sync-dse-price-snapshots-dynamic')
-    ->everyMinute()
+    ->everyFifteenMinutes()
     ->withoutOverlapping();
 
 Schedule::command('nav:calculate-daily-dynamic')

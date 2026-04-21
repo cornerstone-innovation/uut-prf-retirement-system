@@ -48,15 +48,23 @@ class BuildPlanNavSnapshotDataService
                 continue;
             }
 
-        $priceSnapshot = $marketSecurity->priceSnapshots()
-            ->whereDate('valuation_date', $valuationDateCarbon->toDateString())
-            ->latest('id')
-            ->first();
+            $priceSnapshot = $marketSecurity->priceSnapshots()
+                ->whereDate('valuation_date', $valuationDateCarbon->toDateString())
+                ->latest('id')
+                ->first();
+
+            if (! $priceSnapshot) {
+                $priceSnapshot = $marketSecurity->priceSnapshots()
+                    ->whereDate('valuation_date', '<=', $valuationDateCarbon->toDateString())
+                    ->latest('valuation_date')
+                    ->latest('id')
+                    ->first();
+            }
 
             if (! $priceSnapshot) {
                 throw ValidationException::withMessages([
                     'market_price' => [
-                        "Missing price snapshot for {$marketSecurity->symbol} on {$valuationDateCarbon->toDateString()}."
+                        "Missing price snapshot for {$marketSecurity->symbol} on or before {$valuationDateCarbon->toDateString()}."
                     ],
                 ]);
             }
