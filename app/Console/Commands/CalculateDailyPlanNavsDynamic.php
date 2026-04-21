@@ -38,7 +38,7 @@ class CalculateDailyPlanNavsDynamic extends Command
             $closeTime = $config->market_close_time ?: '16:00:00';
 
             $now = now($timezone);
-            $navDueAt = Carbon::parse($closeTime, $timezone)->addMinutes(20);
+            $navDueAt = Carbon::parse($closeTime, $timezone)->addMinutes(2);
             $valuationDate = $navDueAt->toDateString();
 
             if ($now->lt($navDueAt)) {
