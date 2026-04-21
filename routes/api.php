@@ -35,6 +35,7 @@ use App\Http\Controllers\Api\Admin\PlanCashPositionController;
 use App\Http\Controllers\Api\Admin\PlanUnitSummaryController;
 use App\Http\Controllers\Api\Admin\MarketSecurityPriceSnapshotController;
 use App\Http\Controllers\Api\Admin\PlanValuationController;
+use App\Http\Controllers\Api\PlanConfigurationController;
 
 
 
