@@ -146,4 +146,5 @@ public function activeRule()
         return $this->hasMany(\App\Models\InvestmentTransaction::class);
     }
  
+ 
 }

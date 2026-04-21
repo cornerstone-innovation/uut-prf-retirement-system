@@ -87,6 +87,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/plans/{plan}/nav-records/from-calculation', [PlanValuationController::class, 'acceptPreview']);   
 
 
+    Route::get('/plans/{plan}/configuration', [PlanConfigurationController::class, 'show']);
+    Route::post('/plans/{plan}/configuration', [PlanConfigurationController::class, 'store']);
+    Route::put('/plans/{plan}/configuration', [PlanConfigurationController::class, 'update']);
+
 
 
     Route::post('/company-directors/{companyDirector}/verify-identity', [DirectorVerificationController::class, 'verifyIdentity']);
