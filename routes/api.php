@@ -89,7 +89,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     Route::get('/plans/{plan}/configuration', [PlanConfigurationController::class, 'show']);
     Route::post('/plans/{plan}/configuration', [PlanConfigurationController::class, 'store']);
-    Route::put('/plans/{plan}/configuration', [PlanConfigurationController::class, 'update']);
+    Route::patch('/plans/{plan}/configuration', [PlanConfigurationController::class, 'update']);
 
 
 
