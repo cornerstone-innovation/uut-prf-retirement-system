@@ -5,14 +5,14 @@ namespace App\Console\Commands;
 use App\Models\Plan;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
-use App\Application\Services\Nav\CalculatePlanNavService;
+use App\Application\Services\Nav\CalculateAndCreateNavRecordService;
 
 class CalculateDailyPlanNavs extends Command
 {
     protected $signature = 'nav:calculate-daily {--date=}';
     protected $description = 'Calculate daily NAV for plans configured for automatic NAV calculation';
 
-    public function handle(CalculatePlanNavService $calculatePlanNavService): int
+    public function handle(CalculateAndCreateNavRecordService $calculateAndCreateNavRecordService): int
     {
         $date = $this->option('date')
             ? Carbon::parse((string) $this->option('date'))->toDateString()
@@ -35,13 +35,18 @@ class CalculateDailyPlanNavs extends Command
 
         foreach ($plans as $plan) {
             try {
-                $snapshot = $calculatePlanNavService->calculateAndStore(
+                $result = $calculateAndCreateNavRecordService->execute(
                     plan: $plan,
                     valuationDate: $date,
                     createdBy: null,
+                    notes: 'Auto-generated from nav:calculate-daily command.',
                 );
 
-                $this->info("Calculated NAV for {$plan->name} ({$plan->code}) = {$snapshot->nav_per_unit}");
+                $this->info(
+                    "Calculated NAV for {$plan->name} ({$plan->code}) = {$result['snapshot']->nav_per_unit}" .
+                    ($result['nav_record_created'] ? ' [NAV record created]' : ' [NAV record already existed]')
+                );
+
                 $successCount++;
             } catch (\Throwable $e) {
                 $this->error("Failed for {$plan->name} ({$plan->code}): " . $e->getMessage());

@@ -39,7 +39,8 @@ class CreateNavRecordFromCalculationService
                 'created_by' => $createdBy,
                 'updated_by' => $createdBy,
                 'metadata' => [
-                    'calculation_source' => 'preview_acceptance',
+                    'calculation_source' => 'calculation_engine',
+                    'calculated_at' => now()->toDateTimeString(),
                     'net_asset_value' => $calculationData['net_asset_value'],
                     'outstanding_units' => $calculationData['outstanding_units'],
                     'price_source' => $calculationData['price_source'],

@@ -7,14 +7,14 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
 use App\Models\PlanNavRunLog;
-use App\Application\Services\Nav\CalculatePlanNavService;
+use App\Application\Services\Nav\CalculateAndCreateNavRecordService;
 
 class CalculateDailyPlanNavsDynamic extends Command
 {
     protected $signature = 'nav:calculate-daily-dynamic';
     protected $description = 'Dynamically calculate daily NAV for plans based on configured market close times';
 
-    public function handle(CalculatePlanNavService $calculatePlanNavService): int
+    public function handle(CalculateAndCreateNavRecordService $calculateAndCreateNavRecordService): int
     {
         $plans = Plan::query()
             ->with('configuration')
@@ -55,10 +55,11 @@ class CalculateDailyPlanNavsDynamic extends Command
             }
 
             try {
-                $snapshot = $calculatePlanNavService->calculateAndStore(
+                $result = $calculateAndCreateNavRecordService->execute(
                     plan: $plan,
                     valuationDate: $valuationDate,
                     createdBy: null,
+                    notes: 'Auto-generated from nav:calculate-daily-dynamic command.',
                 );
 
                 PlanNavRunLog::query()->create([
@@ -67,14 +68,21 @@ class CalculateDailyPlanNavsDynamic extends Command
                     'valuation_date' => $valuationDate,
                     'executed_at' => now($timezone),
                     'status' => 'completed',
-                    'message' => 'NAV calculated successfully.',
+                    'message' => $result['nav_record_created']
+                        ? 'NAV calculated and NAV record created successfully.'
+                        : 'NAV calculated successfully. NAV record already existed.',
                     'metadata' => [
-                        'nav_per_unit' => $snapshot->nav_per_unit,
+                        'nav_per_unit' => $result['snapshot']->nav_per_unit,
                         'timezone' => $timezone,
+                        'nav_record_id' => $result['nav_record']->id ?? null,
+                        'nav_record_created' => $result['nav_record_created'],
                     ],
                 ]);
 
-                $this->info("Calculated NAV for {$plan->name} ({$plan->code}) = {$snapshot->nav_per_unit}");
+                $this->info(
+                    "Calculated NAV for {$plan->name} ({$plan->code}) = {$result['snapshot']->nav_per_unit}" .
+                    ($result['nav_record_created'] ? ' [NAV record created]' : ' [NAV record already existed]')
+                );
             } catch (\Throwable $e) {
                 PlanNavRunLog::query()->create([
                     'uuid' => (string) Str::uuid(),
