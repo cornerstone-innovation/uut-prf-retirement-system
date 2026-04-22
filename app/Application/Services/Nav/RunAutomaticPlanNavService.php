@@ -113,3 +113,6 @@ class RunAutomaticPlanNavService
         });
     }
 }
+
+
+// Example usage in a console command
