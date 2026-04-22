@@ -37,7 +37,7 @@ class CreateNavRecordFromCalculationService
                 'source' => 'calculation_engine',
                 'notes' => $notes,
                 'created_by' => $createdBy,
-                'updated_by' => $createdBy,
+                
                 'metadata' => [
                     'calculation_source' => 'calculation_engine',
                     'calculated_at' => now()->toDateTimeString(),

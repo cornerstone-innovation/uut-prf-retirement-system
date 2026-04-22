@@ -98,7 +98,7 @@ class RunAutomaticPlanNavService
                 );
             } else {
                 $finalized = [
-                    'nav_record' => $navRecord,
+                    'nav_record' => $navRecord->fresh(),
                     'auto_allocation' => null,
                 ];
             }
