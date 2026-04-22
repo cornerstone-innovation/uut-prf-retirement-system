@@ -26,7 +26,7 @@ return new class extends Migration
             $table->decimal('initial_offer_price_per_unit', 20, 6)->nullable();
 
             $table->string('phase_status')->default('initial_offer');
-            // initial_offer | live_market | suspended | closed
+            // initial_offer | live_nav | suspended | closed
 
             $table->timestamp('live_phase_started_at')->nullable();
 

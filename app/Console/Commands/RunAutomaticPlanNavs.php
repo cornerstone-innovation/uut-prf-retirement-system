@@ -23,7 +23,7 @@ class RunAutomaticPlanNavs extends Command
             ->with('configuration')
             ->whereHas('configuration', function ($query) {
                 $query->where('auto_calculate_nav', true)
-                    ->where('phase_status', 'live_market');
+                    ->where('phase_status', 'live_nav');
             })
             ->get();
 

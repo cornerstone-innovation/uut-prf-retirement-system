@@ -35,7 +35,7 @@ class RunAutomaticPlanNavService
             ]);
         }
 
-        if (($plan->configuration->phase_status ?? null) !== 'live_market') {
+        if (($plan->configuration->phase_status ?? null) !== 'live_nav') {
             throw ValidationException::withMessages([
                 'plan' => ['Automatic NAV calculation only runs in Live NAV phase.'],
             ]);
