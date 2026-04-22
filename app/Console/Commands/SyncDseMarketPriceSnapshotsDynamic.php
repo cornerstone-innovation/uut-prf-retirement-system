@@ -58,3 +58,5 @@ class SyncDseMarketPriceSnapshotsDynamic extends Command
         }
     }
 }
+
+// test command with: php artisan market-data:sync-dse-price-snapshots-dynamic
