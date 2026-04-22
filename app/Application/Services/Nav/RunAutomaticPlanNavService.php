@@ -1,118 +1,125 @@
 <?php
 
-namespace App\Application\Services\Nav;
+namespace App\Console\Commands;
 
 use App\Models\Plan;
-use App\Models\NavRecord;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
+use App\Models\PlanNavRunLog;
+use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
+use App\Application\Services\Nav\PlanNavScheduleService;
+use App\Application\Services\Nav\RunAutomaticPlanNavService;
 
-class RunAutomaticPlanNavService
+class RunAutomaticPlanNavs extends Command
 {
-    public function __construct(
-        private readonly CalculatePlanNavService $calculatePlanNavService,
-        private readonly CreateNavRecordFromCalculationService $createNavRecordFromCalculationService,
-        private readonly AutoFinalizeNavRecordService $autoFinalizeNavRecordService,
-    ) {
-    }
+    protected $signature = 'nav:run-auto';
+    protected $description = 'Automatically calculate, record, approve, and publish NAV for eligible plans';
 
-    public function run(
-        Plan $plan,
-        string $valuationDate,
-        ?int $systemUserId = null,
-    ): array {
-        $plan->loadMissing('configuration');
+    public function handle(
+        PlanNavScheduleService $planNavScheduleService,
+        RunAutomaticPlanNavService $runAutomaticPlanNavService,
+    ): int {
+        $plans = Plan::query()
+            ->with('configuration')
+            ->whereHas('configuration', function ($query) {
+                $query->where('auto_calculate_nav', true)
+                    ->where('phase_status', 'live_nav');
+            })
+            ->get();
 
-        if (! $plan->configuration) {
-            throw ValidationException::withMessages([
-                'plan' => ['Plan configuration is missing.'],
-            ]);
+        if ($plans->isEmpty()) {
+            $this->warn('No eligible plans found for automatic NAV.');
+            return self::SUCCESS;
         }
 
-        if (! (bool) $plan->configuration->auto_calculate_nav) {
-            throw ValidationException::withMessages([
-                'plan' => ['Automatic NAV calculation is disabled for this plan.'],
-            ]);
-        }
+        foreach ($plans as $plan) {
+            $config = $plan->configuration;
 
-        if (($plan->configuration->phase_status ?? null) !== 'live_nav') {
-            throw ValidationException::withMessages([
-                'plan' => ['Automatic NAV calculation only runs in Live NAV phase.'],
-            ]);
-        }
-
-        return DB::transaction(function () use ($plan, $valuationDate, $systemUserId) {
-            $existingPublished = NavRecord::query()
-                ->where('plan_id', $plan->id)
-                ->whereDate('valuation_date', $valuationDate)
-                ->where('status', 'published')
-                ->first();
-
-            if ($existingPublished) {
-                return [
-                    'snapshot' => null,
-                    'nav_record' => $existingPublished,
-                    'nav_record_created' => false,
-                    'already_published' => true,
-                    'auto_allocation' => null,
-                ];
+            if (! $config) {
+                continue;
             }
 
-            $snapshot = $this->calculatePlanNavService->calculateAndStore(
-                plan: $plan,
-                valuationDate: $valuationDate,
-                createdBy: $systemUserId,
-            );
+            $timezone = $config->market_close_timezone ?: 'Africa/Dar_es_Salaam';
+            $marketCloseTime = $config->market_close_time;
 
-            $existingRecord = NavRecord::query()
+            if (! $marketCloseTime) {
+                continue;
+            }
+
+            $now = Carbon::now($timezone);
+            [$hour, $minute] = array_map('intval', explode(':', substr($marketCloseTime, 0, 5)));
+
+            $marketCloseAt = $now->copy()->setTime($hour, $minute, 0);
+            $navDueAt = $marketCloseAt->copy()->addMinutes(20);
+            $valuationDate = $marketCloseAt->toDateString();
+
+            if ($now->lt($navDueAt)) {
+                continue;
+            }
+
+            $alreadyRun = PlanNavRunLog::query()
                 ->where('plan_id', $plan->id)
                 ->whereDate('valuation_date', $valuationDate)
-                ->first();
+                ->where('status', 'completed')
+                ->exists();
 
-            if (! $existingRecord) {
-                $navRecord = $this->createNavRecordFromCalculationService->create(
+            if ($alreadyRun) {
+                continue;
+            }
+
+            try {
+                $result = $runAutomaticPlanNavService->run(
                     plan: $plan,
-                    calculationData: [
-                        'valuation_date' => $snapshot->valuation_date->toDateString(),
-                        'nav_per_unit' => (float) $snapshot->nav_per_unit,
-                        'net_asset_value' => (float) $snapshot->net_asset_value,
-                        'outstanding_units' => (float) $snapshot->outstanding_units,
-                        'price_source' => $snapshot->price_source,
-                        'breakdown' => $snapshot->breakdown ?? [],
+                    valuationDate: $valuationDate,
+                    systemUserId: null,
+                );
+
+                PlanNavRunLog::query()->updateOrCreate(
+                    [
+                        'plan_id' => $plan->id,
+                        'valuation_date' => $valuationDate,
                     ],
-                    createdBy: $systemUserId,
-                    notes: 'Auto-created from scheduled NAV calculation.',
+                    [
+                        'uuid' => (string) Str::uuid(),
+                        'executed_at' => now($timezone),
+                        'status' => 'completed',
+                        'message' => $result['already_published']
+                            ? 'NAV was already published for this valuation date.'
+                            : 'NAV calculated, recorded, approved, and published successfully.',
+                        'metadata' => [
+                            'timezone' => $timezone,
+                            'nav_record_id' => $result['nav_record']?->id,
+                            'nav_record_created' => $result['nav_record_created'] ?? false,
+                            'already_published' => $result['already_published'] ?? false,
+                            'valuation_snapshot_id' => $result['snapshot']?->id,
+                            'nav_per_unit' => $result['snapshot']?->nav_per_unit,
+                            'auto_allocation' => $result['auto_allocation'],
+                        ],
+                    ]
                 );
 
-                $navRecordCreated = true;
-            } else {
-                $navRecord = $existingRecord;
-                $navRecordCreated = false;
-            }
-
-            if ($navRecord->status !== 'published') {
-                $finalized = $this->autoFinalizeNavRecordService->finalize(
-                    navRecord: $navRecord,
-                    systemUserId: $systemUserId,
-                    notes: 'Automatically approved and published by scheduled NAV engine.',
+                $this->info("Automatic NAV completed for {$plan->name} ({$plan->code}).");
+            } catch (\Throwable $e) {
+                PlanNavRunLog::query()->updateOrCreate(
+                    [
+                        'plan_id' => $plan->id,
+                        'valuation_date' => $valuationDate,
+                    ],
+                    [
+                        'uuid' => (string) Str::uuid(),
+                        'executed_at' => now($timezone),
+                        'status' => 'failed',
+                        'message' => $e->getMessage(),
+                        'metadata' => [
+                            'timezone' => $timezone,
+                        ],
+                    ]
                 );
-            } else {
-                $finalized = [
-                    'nav_record' => $navRecord->fresh(),
-                    'auto_allocation' => null,
-                ];
-            }
 
-            return [
-                'snapshot' => $snapshot,
-                'nav_record' => $finalized['nav_record'],
-                'nav_record_created' => $navRecordCreated,
-                'already_published' => false,
-                'auto_allocation' => $finalized['auto_allocation'],
-            ];
-        });
+                $this->error("Failed for {$plan->name} ({$plan->code}): {$e->getMessage()}");
+            }
+        }
+
+        return self::SUCCESS;
     }
 }
-
-
-// Example usage in a console command
