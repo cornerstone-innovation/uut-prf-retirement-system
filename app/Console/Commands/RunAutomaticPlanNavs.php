@@ -74,38 +74,47 @@ class RunAutomaticPlanNavs extends Command
                     systemUserId: null,
                 );
 
-                PlanNavRunLog::query()->create([
-                    'uuid' => (string) Str::uuid(),
-                    'plan_id' => $plan->id,
-                    'valuation_date' => $valuationDate,
-                    'executed_at' => now($timezone),
-                    'status' => 'completed',
-                    'message' => $result['already_published']
-                        ? 'NAV was already published for this valuation date.'
-                        : 'NAV calculated, recorded, approved, and published successfully.',
-                    'metadata' => [
-                        'timezone' => $timezone,
-                        'nav_record_id' => $result['nav_record']?->id,
-                        'nav_record_created' => $result['nav_record_created'] ?? false,
-                        'already_published' => $result['already_published'] ?? false,
-                        'nav_per_unit' => $result['snapshot']?->nav_per_unit,
-                        'auto_allocation' => $result['auto_allocation'],
+                PlanNavRunLog::query()->updateOrCreate(
+                    [
+                        'plan_id' => $plan->id,
+                        'valuation_date' => $valuationDate,
                     ],
-                ]);
+                    [
+                        'uuid' => (string) Str::uuid(),
+                        'executed_at' => now($timezone),
+                        'status' => 'completed',
+                        'message' => $result['already_published']
+                            ? 'NAV was already published for this valuation date.'
+                            : 'NAV calculated, recorded, approved, and published successfully.',
+                        'metadata' => [
+                            'timezone' => $timezone,
+                            'nav_record_id' => $result['nav_record']?->id,
+                            'nav_record_created' => $result['nav_record_created'] ?? false,
+                            'already_published' => $result['already_published'] ?? false,
+                            'valuation_snapshot_id' => $result['snapshot']?->id,
+                            'nav_per_unit' => $result['snapshot']?->nav_per_unit,
+                            'auto_allocation' => $result['auto_allocation'],
+                        ],
+                    ]
+                );
 
                 $this->info("Automatic NAV completed for {$plan->name} ({$plan->code}).");
             } catch (\Throwable $e) {
-                PlanNavRunLog::query()->create([
-                    'uuid' => (string) Str::uuid(),
-                    'plan_id' => $plan->id,
-                    'valuation_date' => now($timezone)->toDateString(),
-                    'executed_at' => now($timezone),
-                    'status' => 'failed',
-                    'message' => $e->getMessage(),
-                    'metadata' => [
-                        'timezone' => $timezone,
+                PlanNavRunLog::query()->updateOrCreate(
+                    [
+                        'plan_id' => $plan->id,
+                        'valuation_date' => $valuationDate,
                     ],
-                ]);
+                    [
+                        'uuid' => (string) Str::uuid(),
+                        'executed_at' => now($timezone),
+                        'status' => 'failed',
+                        'message' => $e->getMessage(),
+                        'metadata' => [
+                            'timezone' => $timezone,
+                        ],
+                    ]
+                );
 
                 $this->error("Failed for {$plan->name} ({$plan->code}): {$e->getMessage()}");
             }
