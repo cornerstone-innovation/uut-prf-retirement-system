@@ -93,6 +93,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::patch('/plans/{plan}/configuration', [PlanConfigurationController::class, 'update']);
 
 
+    Route::post(
+    '/plans/{plan}/equity-holdings/from-market',
+    [PlanEquityHoldingController::class, 'storeFromMarket']
+);
+
+
 
     Route::post('/company-directors/{companyDirector}/verify-identity', [DirectorVerificationController::class, 'verifyIdentity']);
 
