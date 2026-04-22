@@ -50,7 +50,7 @@ class RunAutomaticPlanNavs extends Command
             [$hour, $minute] = array_map('intval', explode(':', substr($marketCloseTime, 0, 5)));
 
             $marketCloseAt = $now->copy()->setTime($hour, $minute, 0);
-            $navDueAt = $marketCloseAt->copy()->addMinutes(20);
+            $navDueAt = $marketCloseAt->copy()->addMinutes(2);
             $valuationDate = $marketCloseAt->toDateString();
 
             if ($now->lt($navDueAt)) {
