@@ -9,6 +9,7 @@ use Illuminate\Support\Str;
 use App\Models\PlanEquityHolding;
 use App\Http\Requests\Plan\StorePlanEquityHoldingRequest;
 use App\Http\Requests\Plan\UpdatePlanEquityHoldingRequest;
+use Illuminate\Http\Request;
 
 class PlanEquityHoldingController extends Controller
 {
