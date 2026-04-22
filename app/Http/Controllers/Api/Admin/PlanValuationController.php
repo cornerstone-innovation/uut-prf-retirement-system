@@ -35,7 +35,8 @@ class PlanValuationController extends Controller
     public function calculate(
         Request $request,
         Plan $plan,
-        CalculatePlanNavService $calculatePlanNavService
+        CalculatePlanNavService $calculatePlanNavService,
+        CreateNavRecordFromCalculationService $createNavRecordFromCalculationService,
     ): JsonResponse {
         $validated = $request->validate([
             'valuation_date' => ['required', 'date'],
@@ -47,14 +48,19 @@ class PlanValuationController extends Controller
             createdBy: $request->user()?->id,
         );
 
-        // 🔥 ADD THIS BLOCK
-        $navRecord = app(\App\Application\Services\Nav\CreateNavRecordFromCalculationService::class)
-            ->create(
-                plan: $plan,
-                calculationData: $snapshot,
-                createdBy: $request->user()?->id,
-                notes: 'Auto-created from NAV calculation',
-            );
+        $navRecord = $createNavRecordFromCalculationService->create(
+            plan: $plan,
+            calculationData: [
+                'valuation_date' => $snapshot->valuation_date->toDateString(),
+                'nav_per_unit' => (float) $snapshot->nav_per_unit,
+                'net_asset_value' => (float) $snapshot->net_asset_value,
+                'outstanding_units' => (float) $snapshot->outstanding_units,
+                'price_source' => $snapshot->price_source,
+                'breakdown' => $snapshot->breakdown ?? [],
+            ],
+            createdBy: $request->user()?->id,
+            notes: 'Created from NAV calculation.',
+        );
 
         return response()->json([
             'message' => 'Plan NAV calculated and NAV record created successfully.',
@@ -62,11 +68,6 @@ class PlanValuationController extends Controller
                 'snapshot' => $snapshot,
                 'nav_record' => $navRecord,
             ],
-        ]);
-
-        return response()->json([
-            'message' => 'Plan NAV calculated successfully.',
-            'data' => $snapshot,
         ]);
     }
 

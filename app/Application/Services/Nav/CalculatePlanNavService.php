@@ -9,7 +9,7 @@ use Illuminate\Support\Str;
 class CalculatePlanNavService
 {
     public function __construct(
-        private readonly BuildPlanNavSnapshotDataService $buildPlanNavSnapshotDataService
+        private readonly PlanNavCalculatorService $planNavCalculatorService
     ) {
     }
 
@@ -18,10 +18,15 @@ class CalculatePlanNavService
         string $valuationDate,
         ?int $createdBy = null
     ): PlanValuationSnapshot {
-        $data = $this->buildPlanNavSnapshotDataService->build(
+        $data = $this->planNavCalculatorService->calculate(
             plan: $plan,
             valuationDate: $valuationDate
         );
+
+        $existingUuid = PlanValuationSnapshot::query()
+            ->where('plan_id', $plan->id)
+            ->whereDate('valuation_date', $data['valuation_date'])
+            ->value('uuid');
 
         return PlanValuationSnapshot::updateOrCreate(
             [
@@ -29,7 +34,7 @@ class CalculatePlanNavService
                 'valuation_date' => $data['valuation_date'],
             ],
             [
-                'uuid' => (string) Str::uuid(),
+                'uuid' => $existingUuid ?: (string) Str::uuid(),
                 'plan_family' => $data['plan_family'],
                 'equity_market_value' => $data['equity_market_value'],
                 'bond_market_value' => $data['bond_market_value'],

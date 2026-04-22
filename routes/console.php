@@ -12,6 +12,6 @@ Schedule::command('market-data:sync-dse-price-snapshots-dynamic')
     ->everyFifteenMinutes()
     ->withoutOverlapping();
 
-Schedule::command('nav:calculate-daily-dynamic')
-    ->everyMinute()
+Schedule::command('nav:run-auto')
+    ->everyFiveMinutes()
     ->withoutOverlapping();
