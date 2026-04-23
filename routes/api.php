@@ -98,6 +98,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/admin/investors/{investor}/portfolio-holdings', [AdminInvestorPortfolioController::class, 'holdings']);
     Route::get('/admin/investors/{investor}/portfolio-transactions', [AdminInvestorPortfolioController::class, 'transactions']);
     Route::get('/admin/investors/{investor}/portfolio-activity', [AdminInvestorPortfolioController::class, 'activity']);
+    Route::get('/admin/investors/{investor}/purchase-requests', [AdminInvestorPortfolioController::class, 'purchaseRequests']);
+    Route::get('/admin/investors/{investor}/payments', [AdminInvestorPortfolioController::class, 'payments']);
 
 
     Route::post(
