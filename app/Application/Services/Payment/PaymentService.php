@@ -407,12 +407,15 @@ class PaymentService
         return $normalized;
     }
 
-    protected function generateUniquePaymentReference(): string
-    {
-        do {
-            $reference = 'PAY' . now()->format('YmdHis') . strtoupper(Str::random(6));
-        } while (Payment::query()->where('reference', $reference)->exists());
+   protected function generateUniquePaymentReference(): string
+        {
+            do {
+                $reference = 'PAY'
+                    . now()->format('ymdHis')   // 12 chars
+                    . strtoupper(Str::random(5)); // 5 chars
+                // total = 3 + 12 + 5 = 20
+            } while (Payment::query()->where('reference', $reference)->exists());
 
-        return $reference;
-    }
+            return $reference;
+        }
 }
