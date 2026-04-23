@@ -36,6 +36,7 @@ use App\Http\Controllers\Api\Admin\PlanUnitSummaryController;
 use App\Http\Controllers\Api\Admin\MarketSecurityPriceSnapshotController;
 use App\Http\Controllers\Api\Admin\PlanValuationController;
 use App\Http\Controllers\Api\PlanConfigurationController;
+use App\Http\Controllers\Api\Admin\AdminInvestorPortfolioController;
 
 
 
@@ -91,6 +92,12 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::get('/plans/{plan}/configuration', [PlanConfigurationController::class, 'show']);
     Route::post('/plans/{plan}/configuration', [PlanConfigurationController::class, 'store']);
     Route::patch('/plans/{plan}/configuration', [PlanConfigurationController::class, 'update']);
+
+
+     Route::get('/admin/investors/{investor}/portfolio-summary', [AdminInvestorPortfolioController::class, 'summary']);
+    Route::get('/admin/investors/{investor}/portfolio-holdings', [AdminInvestorPortfolioController::class, 'holdings']);
+     Route::get('/admin/investors/{investor}/portfolio-transactions', [AdminInvestorPortfolioController::class, 'transactions']);
+    Route::get('/admin/investors/{investor}/portfolio-activity', [AdminInvestorPortfolioController::class, 'activity']);
 
 
     Route::post(
