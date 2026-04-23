@@ -36,10 +36,12 @@ class PaymentService
             ]);
         }
 
+        $purchaseRequest->loadMissing(['investor']);
+
         $normalizedPhoneNumber = $this->normalizePhoneNumber(
             $phoneNumber
-                ?: $purchaseRequest->investor?->phone_primary
-                ?: $purchaseRequest->investor?->phone
+                ?: data_get($purchaseRequest, 'investor.phone_primary')
+                ?: data_get($purchaseRequest, 'investor.phone')
         );
 
         if (! $normalizedPhoneNumber) {
@@ -54,8 +56,7 @@ class PaymentService
             $normalizedPhoneNumber,
             $createdBy
         ) {
-            $nextPaymentNumber = (Payment::max('id') ?? 0) + 1;
-            $reference = 'PAY' . str_pad((string) $nextPaymentNumber, 6, '0', STR_PAD_LEFT);
+            $reference = $this->generateUniquePaymentReference();
 
             $payment = Payment::create([
                 'uuid' => (string) Str::uuid(),
@@ -75,10 +76,15 @@ class PaymentService
                 'updated_by' => $createdBy,
             ]);
 
+            $attemptNumber = ((int) $payment->attempts()->max('attempt_number')) + 1;
+            if ($attemptNumber <= 0) {
+                $attemptNumber = 1;
+            }
+
             $attempt = PaymentAttempt::create([
                 'uuid' => (string) Str::uuid(),
                 'payment_id' => $payment->id,
-                'attempt_number' => 1,
+                'attempt_number' => $attemptNumber,
                 'provider' => 'clickpesa',
                 'status' => 'initiated',
                 'request_payload' => [
@@ -91,20 +97,55 @@ class PaymentService
                 'initiated_at' => now(),
             ]);
 
-            $previewResponse = $this->ussdPushService->preview([
-                'amount' => (string) $payment->amount,
-                'currency' => $payment->currency,
-                'orderReference' => $payment->reference,
-                'phoneNumber' => $normalizedPhoneNumber,
-                'fetchSenderDetails' => true,
-            ]);
+            try {
+                $previewResponse = $this->ussdPushService->preview([
+                    'amount' => (string) $payment->amount,
+                    'currency' => $payment->currency,
+                    'orderReference' => $payment->reference,
+                    'phoneNumber' => $normalizedPhoneNumber,
+                    'fetchSenderDetails' => true,
+                ]);
 
-            $initiateResponse = $this->ussdPushService->initiate([
-                'amount' => (string) $payment->amount,
-                'currency' => $payment->currency,
-                'orderReference' => $payment->reference,
-                'phoneNumber' => $normalizedPhoneNumber,
-            ]);
+                $initiateResponse = $this->ussdPushService->initiate([
+                    'amount' => (string) $payment->amount,
+                    'currency' => $payment->currency,
+                    'orderReference' => $payment->reference,
+                    'phoneNumber' => $normalizedPhoneNumber,
+                ]);
+            } catch (ValidationException $e) {
+                $payment->update([
+                    'status' => 'failed',
+                    'updated_by' => $createdBy,
+                ]);
+
+                $attempt->update([
+                    'status' => 'failed',
+                    'completed_at' => now(),
+                    'response_payload' => [
+                        'errors' => $e->errors(),
+                    ],
+                ]);
+
+                throw $e;
+            } catch (\Throwable $e) {
+                $payment->update([
+                    'status' => 'failed',
+                    'updated_by' => $createdBy,
+                    'metadata' => array_merge($payment->metadata ?? [], [
+                        'exception_message' => $e->getMessage(),
+                    ]),
+                ]);
+
+                $attempt->update([
+                    'status' => 'failed',
+                    'completed_at' => now(),
+                    'response_payload' => [
+                        'exception_message' => $e->getMessage(),
+                    ],
+                ]);
+
+                throw $e;
+            }
 
             $providerTransactionId = data_get($initiateResponse, 'id');
             $providerStatus = data_get($initiateResponse, 'status', 'PROCESSING');
@@ -192,7 +233,11 @@ class PaymentService
                 'status_query' => $statusRow,
             ]);
 
-            $purchaseRequest = $payment->purchaseRequest?->fresh(['investmentTransaction', 'latestPayment', 'plan']);
+            $purchaseRequest = $payment->purchaseRequest?->fresh([
+                'investmentTransaction',
+                'latestPayment',
+                'plan',
+            ]);
 
             if (
                 $purchaseRequest &&
@@ -233,24 +278,31 @@ class PaymentService
             ]),
         ]);
 
-            if (in_array($status, ['SUCCESS', 'SETTLED'])) {
-        $payment->update([
-            'status' => 'paid',
-            'paid_at' => now(),
-        ]);
+        if (in_array(strtoupper((string) $providerStatus), ['SUCCESS', 'SETTLED'], true)) {
+            $payment->update([
+                'status' => 'paid',
+                'paid_at' => now(),
+            ]);
 
-        $purchaseRequest = $payment->purchaseRequest;
+            $purchaseRequest = $payment->purchaseRequest;
 
-        if ($purchaseRequest && $purchaseRequest->status !== 'allocated') {
-            app(\App\Application\Services\Investment\AllocateInvestmentService::class)
-                ->allocate($purchaseRequest);
+            if (
+                $purchaseRequest &&
+                $purchaseRequest->status !== 'allocated' &&
+                ! $purchaseRequest->investmentTransaction
+            ) {
+                $allocationResult = $this->purchaseAllocationService->allocate(
+                    purchaseRequest: $purchaseRequest->fresh(['investmentTransaction', 'latestPayment', 'plan']),
+                    processedBy: $processedBy
+                );
+                $autoAllocated = true;
+            }
         }
-    }
 
         return [
             'payment' => $payment->fresh(['purchaseRequest', 'attempts']),
-            'auto_allocated' => false,
-            'allocation' => null,
+            'auto_allocated' => $autoAllocated,
+            'allocation' => $allocationResult,
         ];
     }
 
@@ -353,5 +405,14 @@ class PaymentService
         }
 
         return $normalized;
+    }
+
+    protected function generateUniquePaymentReference(): string
+    {
+        do {
+            $reference = 'PAY' . now()->format('YmdHis') . strtoupper(Str::random(6));
+        } while (Payment::query()->where('reference', $reference)->exists());
+
+        return $reference;
     }
 }
