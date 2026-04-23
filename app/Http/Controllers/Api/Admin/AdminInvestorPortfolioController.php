@@ -21,6 +21,127 @@ class AdminInvestorPortfolioController extends Controller
     ) {
     }
 
+
+
+    public function index(Request $request): JsonResponse
+{
+    $perPage = min(max((int) $request->integer('per_page', 15), 1), 100);
+
+    $query = Investor::query()
+        ->with([
+            'contact',
+            'investorCategory',
+        ]);
+
+    if ($request->filled('search')) {
+        $search = trim((string) $request->string('search'));
+
+        $query->where(function ($inner) use ($search) {
+            $inner->where('investor_number', 'ilike', "%{$search}%")
+                ->orWhere('full_name', 'ilike', "%{$search}%")
+                ->orWhere('company_name', 'ilike', "%{$search}%")
+                ->orWhere('first_name', 'ilike', "%{$search}%")
+                ->orWhere('middle_name', 'ilike', "%{$search}%")
+                ->orWhere('last_name', 'ilike', "%{$search}%");
+        });
+    }
+
+    if ($request->filled('kyc_status')) {
+        $query->where('kyc_status', $request->string('kyc_status')->toString());
+    }
+
+    if ($request->filled('investor_status')) {
+        $query->where('investor_status', $request->string('investor_status')->toString());
+    }
+
+    if ($request->filled('investor_type')) {
+        $query->where('investor_type', $request->string('investor_type')->toString());
+    }
+
+    $investors = $query
+        ->latest('id')
+        ->paginate($perPage)
+        ->withQueryString();
+
+    $rows = collect($investors->items())->map(function (Investor $investor) {
+        $lots = UnitLot::query()
+            ->with('plan')
+            ->where('investor_id', $investor->id)
+            ->where('remaining_units', '>', 0)
+            ->get();
+
+        $totalUnits = (float) $lots->sum(fn (UnitLot $lot) => (float) $lot->remaining_units);
+        $totalInvestedAmount = (float) $lots->sum(fn (UnitLot $lot) => (float) $lot->gross_amount);
+
+        $totalCurrentValue = (float) $lots
+            ->groupBy('plan_id')
+            ->sum(function (Collection $planLots) {
+                $plan = $planLots->first()?->plan;
+
+                if (! $plan) {
+                    return 0;
+                }
+
+                $latestPublishedNav = $this->navRecordService->getLatestPublishedNav($plan);
+
+                if (! $latestPublishedNav) {
+                    return 0;
+                }
+
+                $latestNav = (float) $latestPublishedNav->nav_per_unit;
+                $remainingUnits = (float) $planLots->sum(
+                    fn (UnitLot $lot) => (float) $lot->remaining_units
+                );
+
+                return round($remainingUnits * $latestNav, 2);
+            });
+
+        $transactionsCount = InvestmentTransaction::query()
+            ->where('investor_id', $investor->id)
+            ->count();
+
+        return [
+            'id' => $investor->id,
+            'uuid' => $investor->uuid,
+            'investor_number' => $investor->investor_number,
+            'full_name' => $investor->full_name,
+            'company_name' => $investor->company_name,
+            'investor_type' => $investor->investor_type,
+            'kyc_status' => $investor->kyc_status,
+            'investor_status' => $investor->investor_status,
+            'onboarding_status' => $investor->onboarding_status,
+            'nationality' => $investor->nationality,
+            'contact' => [
+                'email' => $investor->contact?->email,
+                'phone' => $investor->contact?->phone_number,
+            ],
+            'category' => [
+                'id' => $investor->investorCategory?->id,
+                'name' => $investor->investorCategory?->name,
+                'code' => $investor->investorCategory?->code,
+            ],
+            'summary' => [
+                'total_units' => number_format($totalUnits, 6, '.', ''),
+                'total_invested_amount' => number_format($totalInvestedAmount, 2, '.', ''),
+                'total_current_value' => number_format($totalCurrentValue, 2, '.', ''),
+                'transactions_count' => $transactionsCount,
+            ],
+            'created_at' => optional($investor->created_at)?->toDateTimeString(),
+        ];
+    })->values();
+
+    return response()->json([
+        'message' => 'Admin investors retrieved successfully.',
+        'data' => $rows,
+        'meta' => [
+            'current_page' => $investors->currentPage(),
+            'last_page' => $investors->lastPage(),
+            'per_page' => $investors->perPage(),
+            'total' => $investors->total(),
+        ],
+    ]);
+}
+
     public function summary(Investor $investor): JsonResponse
     {
         $investor->loadMissing([

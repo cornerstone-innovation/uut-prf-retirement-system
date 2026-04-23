@@ -93,10 +93,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::post('/plans/{plan}/configuration', [PlanConfigurationController::class, 'store']);
     Route::patch('/plans/{plan}/configuration', [PlanConfigurationController::class, 'update']);
 
-
-     Route::get('/admin/investors/{investor}/portfolio-summary', [AdminInvestorPortfolioController::class, 'summary']);
+    Route::get('/admin/investors', [AdminInvestorPortfolioController::class, 'index']);
+    Route::get('/admin/investors/{investor}/portfolio-summary', [AdminInvestorPortfolioController::class, 'summary']);
     Route::get('/admin/investors/{investor}/portfolio-holdings', [AdminInvestorPortfolioController::class, 'holdings']);
-     Route::get('/admin/investors/{investor}/portfolio-transactions', [AdminInvestorPortfolioController::class, 'transactions']);
+    Route::get('/admin/investors/{investor}/portfolio-transactions', [AdminInvestorPortfolioController::class, 'transactions']);
     Route::get('/admin/investors/{investor}/portfolio-activity', [AdminInvestorPortfolioController::class, 'activity']);
 
 
