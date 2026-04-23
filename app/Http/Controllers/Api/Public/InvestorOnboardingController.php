@@ -20,7 +20,10 @@ class InvestorOnboardingController extends Controller
         $session = $onboardingService->start(
             investorType: $request->input('investor_type'),
             phoneNumber: $request->input('phone_number'),
-            nidaNumber: $request->input('nida_number')
+            nidaNumber: $request->input('nida_number'),
+            documentType: $request->input('document_type'),
+            documentNumber: $request->input('document_number'),
+            documentFile: $request->file('document_file'),
         );
 
         return response()->json([
@@ -30,6 +33,12 @@ class InvestorOnboardingController extends Controller
                 'investor_type' => $session->investor_type,
                 'phone_number' => $session->phone_number,
                 'nida_number' => $session->nida_number,
+                'document_type' => $session->document_type,
+                'document_number' => $session->document_number,
+                'document_original_name' => $session->document_original_name,
+                'document_mime_type' => $session->document_mime_type,
+                'document_storage_disk' => $session->document_storage_disk,
+                'document_storage_path' => $session->document_storage_path,
                 'current_step' => $session->current_step,
                 'status' => $session->status,
                 'expires_at' => optional($session->expires_at)?->toDateTimeString(),
